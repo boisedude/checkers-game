@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-rgb: 34, 197, 94;
+    --secondary: 142 47% 96%;
+    --secondary-foreground: 142 50% 20%;
+    --muted: 142 47% 96%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 142 47% 96%;
+    --accent-foreground: 142 50% 20%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 142 71% 45%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 142 71% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-rgb: 34, 197, 94;
+    --secondary: 142 20% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 142 20% 15%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 142 20% 15%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 142 71% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Disc flip animation - 3D rotation effect */
+@keyframes disc-flip {
+  0% {
+    transform: rotateY(0deg);
+  }
+  50% {
+    transform: rotateY(90deg);
+  }
+  100% {
+    transform: rotateY(180deg);
+  }
+}
+
+/* Disc place animation - subtle drop effect */
+@keyframes disc-place {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Valid move pulse animation */
+@keyframes valid-move-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+/* Hover lift effect */
+@keyframes hover-lift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-2px);
+  }
+}
+
+@layer utilities {
+  .animate-disc-flip {
+    animation: disc-flip 0.6s ease-in-out;
+  }
+
+  .animate-disc-place {
+    animation: disc-place 0.3s ease-out;
+  }
+
+  .animate-valid-move-pulse {
+    animation: valid-move-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-hover-lift {
+    animation: hover-lift 0.2s ease-out forwards;
+  }
+
+  /* Backface visibility for flip animation */
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  /* 3D rotation utilities for disc flip */
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  /* Custom scrollbar */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thumb-rounded::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+  }
+
+  .scrollbar-thumb-muted-foreground\/20::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.2);
+  }
+
+  .scrollbar-track-transparent::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+}
