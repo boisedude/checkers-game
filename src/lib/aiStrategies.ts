@@ -11,6 +11,22 @@ import {
   countPieces,
 } from './checkersRules'
 
+// AI search depth by difficulty level
+const AI_DEPTH = {
+  easy: 2,    // Bella: very shallow search
+  medium: 4,  // Coop: moderate search
+  hard: 6,    // Bentley: deep search
+} as const
+
+// Scoring constants for game evaluation
+const SCORE = {
+  WIN: 10000,
+  LOSS: -10000,
+} as const
+
+// Random move chance for easy difficulty (20%)
+const EASY_RANDOM_MOVE_CHANCE = 0.2
+
 /**
  * Evaluation weights for different difficulty levels
  */
@@ -126,9 +142,9 @@ function minimax(
     if (gameOver.isOver) {
       // Big bonus/penalty for winning/losing
       if (gameOver.winner === player) {
-        return { score: 10000, move: null }
+        return { score: SCORE.WIN, move: null }
       } else if (gameOver.winner !== null) {
-        return { score: -10000, move: null }
+        return { score: SCORE.LOSS, move: null }
       }
     }
     return { score: evaluateBoard(board, player, difficulty), move: null }
@@ -139,7 +155,7 @@ function minimax(
 
   if (validMoves.length === 0) {
     // No moves available - player loses
-    return { score: maximizingPlayer ? -10000 : 10000, move: null }
+    return { score: maximizingPlayer ? SCORE.LOSS : SCORE.WIN, move: null }
   }
 
   let bestMove: ValidMove | null = null
@@ -204,22 +220,11 @@ export function getAIMove(
   }
 
   // Determine search depth based on difficulty
-  let depth: number
-  switch (difficulty) {
-    case 'easy':
-      depth = 2 // Bella: very shallow search
-      break
-    case 'medium':
-      depth = 4 // Coop: moderate search
-      break
-    case 'hard':
-      depth = 6 // Bentley: deep search
-      break
-  }
+  const depth = AI_DEPTH[difficulty]
 
   // For easy mode, occasionally make a suboptimal move
-  if (difficulty === 'easy' && validMoves.length > 1 && Math.random() < 0.2) {
-    // Return a random move from the top 50% of moves
+  if (difficulty === 'easy' && validMoves.length > 1 && Math.random() < EASY_RANDOM_MOVE_CHANCE) {
+    // Return a random move from the shuffled moves
     const shuffled = [...validMoves].sort(() => Math.random() - 0.5)
     return shuffled[0]
   }
@@ -229,28 +234,4 @@ export function getAIMove(
 
   // Fallback to random move if minimax fails
   return move || validMoves[Math.floor(Math.random() * validMoves.length)]
-}
-
-/**
- * Evaluates a move's quality (for UI hints)
- */
-export function evaluateMove(
-  board: Board,
-  move: ValidMove,
-  player: Player,
-  difficulty: Difficulty
-): number {
-  const newBoard = applyMove(board, move)
-  return evaluateBoard(newBoard, player, difficulty)
-}
-
-/**
- * Gets a hint for the human player
- */
-export function getHint(
-  board: Board,
-  player: Player,
-  difficulty: Difficulty = 'medium'
-): ValidMove | null {
-  return getAIMove(board, player, difficulty)
 }

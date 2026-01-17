@@ -23,7 +23,11 @@ export function Board({
 }: BoardProps) {
   return (
     <div className="w-full max-w-[95vw] sm:max-w-2xl mx-auto px-1 sm:px-0">
-      <div className="grid grid-cols-8 gap-0 border-2 sm:border-4 border-amber-950 rounded-md sm:rounded-lg overflow-hidden shadow-2xl aspect-square">
+      <div
+        className="grid grid-cols-8 gap-0 border-2 sm:border-4 border-amber-950 rounded-md sm:rounded-lg overflow-hidden shadow-2xl aspect-square"
+        role="grid"
+        aria-label="Checkers game board"
+      >
         {board.map((row, rowIndex) =>
           row.map((cell, colIndex) => {
             const isDark = (rowIndex + colIndex) % 2 === 1

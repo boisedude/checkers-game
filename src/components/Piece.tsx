@@ -24,10 +24,16 @@ export function Piece({ piece, isSelected }: PieceProps) {
     ? 'bg-gradient-to-br from-red-500 to-red-700 hover:from-red-400 hover:to-red-600'
     : 'bg-gradient-to-br from-gray-800 to-black hover:from-gray-700 hover:to-gray-900'
 
+  const pieceLabel = `${piece.player === 1 ? 'Red' : 'Black'} ${piece.type === 'king' ? 'king' : 'piece'}${isSelected ? ', selected' : ''}`
+
   return (
-    <div className={`${baseClasses} ${playerClasses}`}>
+    <div
+      className={`${baseClasses} ${playerClasses}`}
+      role="img"
+      aria-label={pieceLabel}
+    >
       {piece.type === 'king' && (
-        <div className="text-2xl font-bold text-yellow-300 drop-shadow-lg">
+        <div className="text-2xl font-bold text-yellow-300 drop-shadow-lg" aria-hidden="true">
           ♛
         </div>
       )}

@@ -15,7 +15,7 @@ export interface BentleyStats {
   bestMargin: number // Best winning margin against Bentley
 }
 
-const STORAGE_KEY = 'othello-bentley-stats'
+const STORAGE_KEY = 'checkers-bentley-stats'
 
 function loadStats(): BentleyStats {
   try {
@@ -23,8 +23,8 @@ function loadStats(): BentleyStats {
     if (stored) {
       return JSON.parse(stored)
     }
-  } catch (error) {
-    console.error('Failed to load Bentley stats:', error)
+  } catch {
+    // Fall through to return default stats
   }
 
   return {
@@ -41,8 +41,8 @@ function loadStats(): BentleyStats {
 function saveStats(stats: BentleyStats): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stats))
-  } catch (error) {
-    console.error('Failed to save Bentley stats:', error)
+  } catch {
+    // Silently fail - stats will be lost but game continues
   }
 }
 

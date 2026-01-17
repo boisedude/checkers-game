@@ -50,12 +50,29 @@ export function Cell({
     ? 'cursor-pointer hover:brightness-110'
     : ''
 
+  // Generate accessible label for the cell
+  const columnLetter = String.fromCharCode(97 + col) // a-h
+  const rowNumber = 8 - row // 1-8 from bottom
+  const cellPosition = `${columnLetter}${rowNumber}`
+  const pieceDescription = piece
+    ? `${piece.player === 1 ? 'Red' : 'Black'} ${piece.type === 'king' ? 'king' : 'piece'}`
+    : ''
+  const cellDescription = piece
+    ? `${cellPosition}: ${pieceDescription}${isSelected ? ', selected' : ''}`
+    : isHighlighted
+      ? `${cellPosition}: valid move destination`
+      : `${cellPosition}: empty`
+
   return (
     <div
       className={`${baseClasses} ${bgClasses} ${highlightClasses} ${cursorClasses}`}
       onClick={handleClick}
       data-row={row}
       data-col={col}
+      role="gridcell"
+      aria-label={cellDescription}
+      aria-selected={isSelected}
+      tabIndex={piece !== null || isHighlighted ? 0 : -1}
     >
       {/* Highlight indicator for valid moves */}
       {isHighlighted && !piece && (

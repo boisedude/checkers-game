@@ -1,6 +1,6 @@
 /**
  * Leaderboard Dialog Component
- * Displays player statistics vs Coop with Othello-specific metrics
+ * Displays player statistics vs Coop with Checkers-specific metrics
  */
 
 import { useState } from 'react'
@@ -103,16 +103,16 @@ export function LeaderboardDialog({
             </div>
           </div>
 
-          {/* Othello-Specific Stats */}
+          {/* Checkers-Specific Stats */}
           <div className="border-t pt-4">
             <h3 className="mb-2 text-sm font-semibold">Best Records</h3>
             <div className="space-y-2">
               <StatRow
                 label="Largest Margin"
-                value={stats.totalCaptures > 0 ? `${stats.totalCaptures} discs` : 'N/A'}
+                value={stats.totalCaptures > 0 ? `${stats.totalCaptures} pieces` : 'N/A'}
               />
               <StatRow label="Perfect Games" value={stats.perfectGames} />
-              <StatRow label="Total Discs Flipped" value={stats.kingsCreated.toLocaleString()} />
+              <StatRow label="Total Pieces Captured" value={stats.kingsCreated.toLocaleString()} />
             </div>
           </div>
         </div>

@@ -1,12 +1,30 @@
 /**
  * useGameAudio Hook
- * Manages game sound effects using Web Audio API for Othello
+ * Manages game sound effects using Web Audio API for Checkers
  * Designed by M. Cooper for www.mcooper.com
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 type SoundEffect = 'discFlip' | 'discPlace' | 'victory' | 'defeat' | 'draw' | 'click' | 'hover'
+
+// Audio timing constants (in seconds)
+const AUDIO_TIMING = {
+  FLIP_DURATION: 0.2,
+  PLACE_DURATION: 0.08,
+  VICTORY_NOTE_DELAY: 0.15,
+  VICTORY_NOTE_DURATION: 0.3,
+  DEFEAT_DURATION: 0.5,
+  DRAW_DURATION: 0.3,
+  CLICK_DURATION: 0.05,
+  HOVER_DURATION: 0.03,
+} as const
+
+// Victory sound notes (C major chord: C, E, G, C)
+const VICTORY_NOTES = [262, 330, 392, 523] as const
+
+// Draw sound frequencies
+const DRAW_FREQUENCIES = [220, 330] as const
 
 // Type declaration for webkit compatibility
 type WebkitWindow = Window &
@@ -16,7 +34,7 @@ type WebkitWindow = Window &
 
 export function useGameAudio() {
   const [isMuted, setIsMuted] = useState(() => {
-    return localStorage.getItem('othello-audio-muted') === 'true'
+    return localStorage.getItem('checkers-audio-muted') === 'true'
   })
 
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -29,8 +47,8 @@ export function useGameAudio() {
         if (AudioContextClass) {
           audioContextRef.current = new AudioContextClass()
         }
-      } catch (error) {
-        console.warn('Web Audio API not supported:', error)
+      } catch {
+        // Web Audio API not supported - audio will be disabled
       }
     }
 
@@ -45,7 +63,7 @@ export function useGameAudio() {
   const toggleMute = useCallback(() => {
     setIsMuted(prev => {
       const newValue = !prev
-      localStorage.setItem('othello-audio-muted', String(newValue))
+      localStorage.setItem('checkers-audio-muted', String(newValue))
       return newValue
     })
   }, [])
@@ -67,16 +85,16 @@ export function useGameAudio() {
     // Frequency sweep for flip sound
     osc.frequency.setValueAtTime(200, now)
     osc.frequency.exponentialRampToValueAtTime(600, now + 0.1)
-    osc.frequency.exponentialRampToValueAtTime(300, now + 0.2)
+    osc.frequency.exponentialRampToValueAtTime(300, now + AUDIO_TIMING.FLIP_DURATION)
 
     // Volume envelope
     gainNode.gain.setValueAtTime(0, now)
     gainNode.gain.linearRampToValueAtTime(0.15, now + 0.02)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + AUDIO_TIMING.FLIP_DURATION)
 
     osc.type = 'sine'
     osc.start(now)
-    osc.stop(now + 0.2)
+    osc.stop(now + AUDIO_TIMING.FLIP_DURATION)
   }, [isMuted])
 
   // Play disc place sound (gentle click)
@@ -93,15 +111,15 @@ export function useGameAudio() {
     gainNode.connect(ctx.destination)
 
     osc.frequency.setValueAtTime(500, now)
-    osc.frequency.exponentialRampToValueAtTime(200, now + 0.08)
+    osc.frequency.exponentialRampToValueAtTime(200, now + AUDIO_TIMING.PLACE_DURATION)
 
     gainNode.gain.setValueAtTime(0, now)
     gainNode.gain.linearRampToValueAtTime(0.2, now + 0.01)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + AUDIO_TIMING.PLACE_DURATION)
 
     osc.type = 'sine'
     osc.start(now)
-    osc.stop(now + 0.08)
+    osc.stop(now + AUDIO_TIMING.PLACE_DURATION)
   }, [isMuted])
 
   // Play victory sound (triumphant fanfare)
@@ -112,24 +130,23 @@ export function useGameAudio() {
     const now = ctx.currentTime
 
     // Play a sequence of ascending notes
-    const notes = [262, 330, 392, 523] // C, E, G, C (major chord)
-    notes.forEach((freq, i) => {
+    VICTORY_NOTES.forEach((freq, i) => {
       const osc = ctx.createOscillator()
       const gainNode = ctx.createGain()
 
       osc.connect(gainNode)
       gainNode.connect(ctx.destination)
 
-      const startTime = now + i * 0.15
+      const startTime = now + i * AUDIO_TIMING.VICTORY_NOTE_DELAY
       osc.frequency.setValueAtTime(freq, startTime)
 
       gainNode.gain.setValueAtTime(0, startTime)
       gainNode.gain.linearRampToValueAtTime(0.2, startTime + 0.05)
-      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + AUDIO_TIMING.VICTORY_NOTE_DURATION)
 
       osc.type = 'triangle'
       osc.start(startTime)
-      osc.stop(startTime + 0.3)
+      osc.stop(startTime + AUDIO_TIMING.VICTORY_NOTE_DURATION)
     })
   }, [isMuted])
 
@@ -148,16 +165,16 @@ export function useGameAudio() {
 
     // Descending frequency (sad trombone effect)
     osc.frequency.setValueAtTime(300, now)
-    osc.frequency.exponentialRampToValueAtTime(100, now + 0.5)
+    osc.frequency.exponentialRampToValueAtTime(100, now + AUDIO_TIMING.DEFEAT_DURATION)
 
     // Fade in and out
     gainNode.gain.setValueAtTime(0, now)
     gainNode.gain.linearRampToValueAtTime(0.2, now + 0.05)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + AUDIO_TIMING.DEFEAT_DURATION)
 
     osc.type = 'sawtooth'
     osc.start(now)
-    osc.stop(now + 0.5)
+    osc.stop(now + AUDIO_TIMING.DEFEAT_DURATION)
   }, [isMuted])
 
   // Play draw sound (neutral tone)
@@ -168,7 +185,7 @@ export function useGameAudio() {
     const now = ctx.currentTime
 
     // Play two tones simultaneously
-    ;[220, 330].forEach(freq => {
+    DRAW_FREQUENCIES.forEach(freq => {
       const osc = ctx.createOscillator()
       const gainNode = ctx.createGain()
 
@@ -179,11 +196,11 @@ export function useGameAudio() {
 
       gainNode.gain.setValueAtTime(0, now)
       gainNode.gain.linearRampToValueAtTime(0.15, now + 0.05)
-      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3)
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + AUDIO_TIMING.DRAW_DURATION)
 
       osc.type = 'sine'
       osc.start(now)
-      osc.stop(now + 0.3)
+      osc.stop(now + AUDIO_TIMING.DRAW_DURATION)
     })
   }, [isMuted])
 
@@ -201,14 +218,14 @@ export function useGameAudio() {
     gainNode.connect(ctx.destination)
 
     osc.frequency.setValueAtTime(800, now)
-    osc.frequency.exponentialRampToValueAtTime(400, now + 0.05)
+    osc.frequency.exponentialRampToValueAtTime(400, now + AUDIO_TIMING.CLICK_DURATION)
 
     gainNode.gain.setValueAtTime(0.1, now)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + AUDIO_TIMING.CLICK_DURATION)
 
     osc.type = 'square'
     osc.start(now)
-    osc.stop(now + 0.05)
+    osc.stop(now + AUDIO_TIMING.CLICK_DURATION)
   }, [isMuted])
 
   // Play hover sound (subtle UI feedback)
@@ -227,11 +244,11 @@ export function useGameAudio() {
     osc.frequency.setValueAtTime(600, now)
 
     gainNode.gain.setValueAtTime(0.05, now)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.03)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + AUDIO_TIMING.HOVER_DURATION)
 
     osc.type = 'sine'
     osc.start(now)
-    osc.stop(now + 0.03)
+    osc.stop(now + AUDIO_TIMING.HOVER_DURATION)
   }, [isMuted])
 
   // Play any sound effect

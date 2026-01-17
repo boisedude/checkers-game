@@ -89,8 +89,8 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
                     validMoves,
                     mustJump: validMoves.some(m => m.jumps.length > 0),
                   }
-                } catch (error) {
-                  console.error('AI move execution failed:', error)
+                } catch {
+                  // AI move execution failed - return previous state
                   return prevState
                 }
               })
@@ -98,8 +98,8 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
               animationTimeoutRef.current = null
             }, MOVE_ANIMATION_DELAY)
           }
-        } catch (error) {
-          console.error('AI move failed:', error)
+        } catch {
+          // AI move failed - reset animation state
           setIsAnimating(false)
         } finally {
           aiMoveScheduledRef.current = false
@@ -198,8 +198,8 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
                   validMoves,
                   mustJump: validMoves.some(m => m.jumps.length > 0),
                 }
-              } catch (error) {
-                console.error('Move execution failed:', error)
+              } catch {
+                // Move execution failed - return previous state
                 return prevState
               }
             })

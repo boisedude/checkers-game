@@ -127,10 +127,10 @@ export function CheckersGame() {
       </div>
 
       {/* Character Info */}
-      <div className="mb-3 sm:mb-6 flex items-center gap-3 sm:gap-4 rounded-lg bg-white p-3 sm:p-4 shadow-lg w-full max-w-md">
+      <div className="mb-3 sm:mb-6 flex items-center gap-3 sm:gap-4 rounded-lg bg-white p-3 sm:p-4 shadow-lg w-full max-w-md" role="region" aria-label="Current opponent">
         <img
           src={character.avatar}
-          alt={character.name}
+          alt={`${character.name} avatar`}
           className="h-12 w-12 sm:h-16 sm:w-16 rounded-full border-2 border-amber-500"
         />
         <div>
@@ -142,7 +142,7 @@ export function CheckersGame() {
       </div>
 
       {/* Game Info */}
-      <div className="mb-3 sm:mb-6 flex gap-4 sm:gap-8 rounded-lg bg-white p-3 sm:p-4 shadow-lg w-full max-w-md">
+      <div className="mb-3 sm:mb-6 flex gap-4 sm:gap-8 rounded-lg bg-white p-3 sm:p-4 shadow-lg w-full max-w-md" role="region" aria-label="Piece count">
         <div className="text-center flex-1">
           <div className="text-xl sm:text-2xl font-bold text-red-600">{gameState.redCount}</div>
           <div className="text-xs sm:text-sm text-gray-600">Your Pieces</div>
@@ -161,7 +161,7 @@ export function CheckersGame() {
       </div>
 
       {/* Turn indicator */}
-      <div className="mb-3 sm:mb-4 text-center">
+      <div className="mb-3 sm:mb-4 text-center" role="status" aria-live="polite">
         <p className="text-base sm:text-lg font-semibold text-gray-700">
           {gameState.currentPlayer === 1 ? 'Your Turn' : `${character.name}'s Turn`}
         </p>

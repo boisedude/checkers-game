@@ -229,8 +229,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 Created by M. Cooper for [www.mcooper.com](https://www.mcooper.com)
 
-Built with assistance from [Claude](https://claude.ai)
-
 ---
 
 **Checkers - Play Coop! Can you beat Bentley?**

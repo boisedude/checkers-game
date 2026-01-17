@@ -50,7 +50,6 @@ export function useMainSiteBentleyStats() {
         throw new Error('Invalid response from API');
       }
     } catch (err) {
-      console.error('Error fetching main site Bentley stats:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
 
       // Set mock data for development/testing
@@ -74,8 +73,8 @@ export function useMainSiteBentleyStats() {
     try {
       await fetch(`${API_BASE}/bentley-win.php`, { method: 'POST' });
       await fetchStats(); // Refresh stats
-    } catch (err) {
-      console.error('Error recording Bentley win:', err);
+    } catch {
+      // Network error - stats update silently fails
     }
   };
 
@@ -86,8 +85,8 @@ export function useMainSiteBentleyStats() {
     try {
       await fetch(`${API_BASE}/bentley-loss.php`, { method: 'POST' });
       await fetchStats(); // Refresh stats
-    } catch (err) {
-      console.error('Error recording Bentley loss:', err);
+    } catch {
+      // Network error - stats update silently fails
     }
   };
 

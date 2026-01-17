@@ -1,12 +1,12 @@
 /**
  * Leaderboard Hook
- * Manages player statistics and leaderboard for Othello
+ * Manages player statistics and leaderboard for Checkers
  */
 
 import { useState, useEffect, useCallback } from 'react'
 import type { LeaderboardEntry } from '@/types/checkers.types'
 
-const STORAGE_KEY = 'othello-leaderboard'
+const STORAGE_KEY = 'checkers-leaderboard'
 const DEFAULT_PLAYER_NAME = 'Player'
 
 /**
@@ -55,13 +55,11 @@ function getInitialLeaderboard(): LeaderboardEntry {
       if (isValidLeaderboard(data)) {
         return data
       } else {
-        console.warn('Invalid leaderboard data in localStorage, resetting to defaults')
         // Clear corrupted data
         localStorage.removeItem(STORAGE_KEY)
       }
     }
-  } catch (error) {
-    console.error('Failed to load leaderboard:', error)
+  } catch {
     // Clear corrupted data
     try {
       localStorage.removeItem(STORAGE_KEY)
@@ -91,8 +89,8 @@ export function useLeaderboard() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stats))
-    } catch (error) {
-      console.error('Failed to save leaderboard:', error)
+    } catch {
+      // Failed to save - stats will be lost but game continues
     }
   }, [stats])
 

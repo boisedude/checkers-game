@@ -7,7 +7,6 @@ import type {
   Board,
   Player,
   Position,
-  Move,
   ValidMove,
   Jump,
   GameState,
@@ -344,23 +343,3 @@ export function createInitialGameState(
   }
 }
 
-/**
- * Converts a move to a readable notation (e.g., "e3-d4" or "e3xc5xc7")
- */
-export function moveToNotation(move: Move | ValidMove): string {
-  const fromNotation = `${String.fromCharCode(97 + move.from.col)}${8 - move.from.row}`
-  const toNotation = `${String.fromCharCode(97 + move.to.col)}${8 - move.to.row}`
-
-  const separator = move.jumps.length > 0 ? 'x' : '-'
-
-  if (move.jumps.length > 1) {
-    // Multi-jump notation: show all intermediate positions
-    const positions = [fromNotation]
-    for (const jump of move.jumps) {
-      positions.push(`${String.fromCharCode(97 + jump.to.col)}${8 - jump.to.row}`)
-    }
-    return positions.join('x')
-  }
-
-  return `${fromNotation}${separator}${toNotation}`
-}
