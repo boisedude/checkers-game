@@ -3,7 +3,7 @@
  * Main game interface for Checkers
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Board } from '@/components/Board'
 import { GameControls } from '@/components/GameControls'
 import { VictoryDialog } from '@/components/VictoryDialog'
@@ -33,13 +33,22 @@ export function CheckersGame() {
   const { stats, recordWin, recordLoss, recordDraw, updatePlayerName, resetStats } = useLeaderboard()
   const { playDiscPlace, playVictory, playDefeat, playDraw } = useGameAudio()
 
-  const [showVictoryDialog, setShowVictoryDialog] = useState(false)
+  const [victoryDialogDismissed, setVictoryDialogDismissed] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
-  const [prevStatus, setPrevStatus] = useState(gameState.status)
+  const prevStatusRef = useRef(gameState.status)
+  const gameEndHandledRef = useRef(false)
 
-  // Detect game end
+  // Derive whether to show victory dialog from game state
+  // Dialog shows when game ends and hasn't been dismissed
+  const showVictoryDialog = gameState.status !== 'playing' && !victoryDialogDismissed
+
+  // Handle game end side effects (sounds, stats recording)
   useEffect(() => {
-    if (prevStatus === 'playing' && gameState.status !== 'playing') {
+    const prevStatus = prevStatusRef.current
+
+    if (prevStatus === 'playing' && gameState.status !== 'playing' && !gameEndHandledRef.current) {
+      gameEndHandledRef.current = true
+
       // Calculate stats
       const totalCaptures = gameState.moveHistory.reduce(
         (acc, move) => acc + move.jumps.length,
@@ -85,12 +94,10 @@ export function CheckersGame() {
           recordBentleyDraw(totalCaptures)
         }
       }
-
-      setShowVictoryDialog(true)
     }
 
-    setPrevStatus(gameState.status)
-  }, [gameState.status, gameState.winner, gameState.difficulty, gameState.redCount, gameState.blackCount, gameState.moveHistory, prevStatus, playVictory, playDefeat, playDraw, recordWin, recordLoss, recordDraw, recordLocalBentleyWin, recordLocalBentleyLoss, recordBentleyDraw, mainSiteBentleyStats])
+    prevStatusRef.current = gameState.status
+  }, [gameState.status, gameState.winner, gameState.difficulty, gameState.redCount, gameState.blackCount, gameState.moveHistory, playVictory, playDefeat, playDraw, recordWin, recordLoss, recordDraw, recordLocalBentleyWin, recordLocalBentleyLoss, recordBentleyDraw, mainSiteBentleyStats])
 
   // Play sound when moves are made
   useEffect(() => {
@@ -100,7 +107,8 @@ export function CheckersGame() {
   }, [gameState.lastMove, playDiscPlace])
 
   const handleNewGame = useCallback(() => {
-    setShowVictoryDialog(false)
+    setVictoryDialogDismissed(false)
+    gameEndHandledRef.current = false
     startNewGame()
   }, [startNewGame])
 
@@ -201,7 +209,7 @@ export function CheckersGame() {
           winner={gameState.winner}
           character={character}
           onPlayAgain={handleNewGame}
-          onClose={() => setShowVictoryDialog(false)}
+          onClose={() => setVictoryDialogDismissed(true)}
           blackCount={gameState.blackCount}
           whiteCount={gameState.redCount}
         />

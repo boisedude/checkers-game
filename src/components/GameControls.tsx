@@ -102,8 +102,8 @@ export function GameControls({
           <div
             className={`h-5 w-5 sm:h-6 sm:w-6 rounded-full shadow-md transition-all ${
               currentPlayer === 1
-                ? 'bg-gradient-to-br from-gray-800 to-black ring-2 ring-gray-600'
-                : 'bg-gradient-to-br from-white to-gray-100 ring-2 ring-gray-300'
+                ? 'bg-gradient-to-br from-red-600 to-red-800 ring-2 ring-red-400'
+                : 'bg-gradient-to-br from-gray-800 to-black ring-2 ring-gray-600'
             }`}
           />
         </div>
@@ -111,15 +111,15 @@ export function GameControls({
         {/* Disc Counts */}
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-gradient-to-br from-gray-800 to-black shadow-md" />
+            <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-gradient-to-br from-red-600 to-red-800 shadow-md" />
             <span className="text-xs sm:text-sm font-medium">
-              You: <span className="font-bold">{blackCount}</span>
+              You: <span className="font-bold">{whiteCount}</span>
             </span>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-gradient-to-br from-white to-gray-100 shadow-md ring-1 ring-gray-300" />
+            <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-gradient-to-br from-gray-800 to-black shadow-md" />
             <span className="text-xs sm:text-sm font-medium">
-              {character.name}: <span className="font-bold">{whiteCount}</span>
+              {character.name}: <span className="font-bold">{blackCount}</span>
             </span>
           </div>
         </div>

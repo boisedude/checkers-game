@@ -112,7 +112,7 @@ export function LeaderboardDialog({
                 value={stats.totalCaptures > 0 ? `${stats.totalCaptures} pieces` : 'N/A'}
               />
               <StatRow label="Perfect Games" value={stats.perfectGames} />
-              <StatRow label="Total Pieces Captured" value={stats.kingsCreated.toLocaleString()} />
+              <StatRow label="Total Pieces Captured" value={stats.multiJumps.toLocaleString()} />
             </div>
           </div>
         </div>

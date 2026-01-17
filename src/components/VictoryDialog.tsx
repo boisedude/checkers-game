@@ -172,7 +172,7 @@ export function VictoryDialog({
                 <span className="font-medium">You (Red)</span>
               </div>
               <span className={`text-xl font-bold ${winner === 1 ? 'text-green-600' : ''}`}>
-                {blackCount}
+                {whiteCount}
               </span>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-muted p-3">
@@ -186,7 +186,7 @@ export function VictoryDialog({
                 <span className="font-medium">{character.name} (Black)</span>
               </div>
               <span className={`text-xl font-bold ${winner === 2 ? 'text-green-600' : ''}`}>
-                {whiteCount}
+                {blackCount}
               </span>
             </div>
             {!isDraw && (
