@@ -2,6 +2,7 @@
   "name": "checkers-game",
   "private": true,
   "version": "1.0.0",
+  "license": "MIT",
   "description": "Checkers - Play Coop! Classic board game with jumping action and king pieces. Challenge Bella, Coop, or Bentley! Built with React 19, TypeScript, and smooth animations.",
   "author": "M. Cooper (www.mcooper.com)",
   "keywords": [
