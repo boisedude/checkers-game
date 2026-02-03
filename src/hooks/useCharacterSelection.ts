@@ -4,8 +4,8 @@
  */
 
 import { useState, useCallback } from 'react'
-import { getCharacterById } from '../../../shared/characters'
-import type { Character, CharacterId } from '../../../shared/characters'
+import { getCharacterById } from '@shared/characters'
+import type { Character, CharacterId } from '@shared/characters'
 import type { Difficulty } from '@/types/checkers.types'
 
 // Map Checkers difficulty to character IDs
@@ -27,15 +27,9 @@ export function useCharacterSelection(initialDifficulty: Difficulty = 'medium') 
     setCharacter(getCharacterById(characterId))
   }, [])
 
-  const getCharacterForDifficulty = useCallback((diff: Difficulty): Character => {
-    const characterId = difficultyToCharacter[diff]
-    return getCharacterById(characterId)
-  }, [])
-
   return {
     character,
     difficulty,
     changeCharacter,
-    getCharacterForDifficulty,
   }
 }

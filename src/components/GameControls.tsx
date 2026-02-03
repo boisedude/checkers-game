@@ -1,12 +1,13 @@
 /**
  * Game Controls Component
- * Controls for difficulty selection, new game, leaderboard, etc.
+ * Controls for difficulty selection, new game, undo, leaderboard, etc.
  */
 
+import React from 'react'
 import { Button } from './ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import type { Difficulty, GameMode } from '@/types/checkers.types'
-import type { Character } from '../../../shared/characters'
+import { CounterClockwiseClockIcon } from '@radix-ui/react-icons'
+import type { Difficulty, GameMode, GameStatus } from '@/types/checkers.types'
 
 interface GameControlsProps {
   difficulty: Difficulty
@@ -14,26 +15,24 @@ interface GameControlsProps {
   onNewGame: () => void
   onShowLeaderboard: () => void
   onShowHelp?: () => void
+  onUndo?: () => void
+  canUndo?: boolean
   disabled?: boolean
   gameMode: GameMode
-  currentPlayer: 1 | 2
-  blackCount: number
-  whiteCount: number
-  character: Character
+  gameStatus?: GameStatus
 }
 
-export function GameControls({
+export const GameControls = React.memo(function GameControls({
   difficulty,
   onDifficultyChange,
   onNewGame,
   onShowLeaderboard,
   onShowHelp,
+  onUndo,
+  canUndo = false,
   disabled = false,
   gameMode,
-  currentPlayer,
-  blackCount,
-  whiteCount,
-  character,
+  gameStatus = 'playing',
 }: GameControlsProps) {
   return (
     <div className="flex flex-col gap-3 sm:gap-6">
@@ -52,9 +51,9 @@ export function GameControls({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="easy">🐕 Bella - Playful Pup</SelectItem>
-                <SelectItem value="medium">🎮 Coop - Casual Challenger</SelectItem>
-                <SelectItem value="hard">🐺 Bentley - The Mastermind</SelectItem>
+                <SelectItem value="easy">Bella - Playful Pup</SelectItem>
+                <SelectItem value="medium">Coop - Casual Challenger</SelectItem>
+                <SelectItem value="hard">Bentley - The Mastermind</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -70,13 +69,28 @@ export function GameControls({
             New Game
           </Button>
 
+          {/* Undo Button - only show during gameplay */}
+          {onUndo && gameStatus === 'playing' && (
+            <Button
+              onClick={onUndo}
+              disabled={disabled || !canUndo}
+              variant="outline"
+              className="flex-1 sm:flex-none h-10 sm:h-auto text-sm sm:text-base gap-1"
+              aria-label="Undo last move (U)"
+              title="Undo (U)"
+            >
+              <CounterClockwiseClockIcon className="h-4 w-4" />
+              Undo
+            </Button>
+          )}
+
           <Button
             onClick={onShowLeaderboard}
             disabled={disabled}
             variant="outline"
             className="flex-1 sm:flex-none h-10 sm:h-auto text-sm sm:text-base"
           >
-            📊 Stats
+            Stats
           </Button>
 
           {onShowHelp && (
@@ -86,44 +100,12 @@ export function GameControls({
               variant="outline"
               className="flex-1 sm:flex-none h-10 sm:h-auto text-sm sm:text-base"
             >
-              ❓ Help
+              Help
             </Button>
           )}
         </div>
       </div>
 
-      {/* Bottom Row: Turn Indicator and Disc Counts */}
-      <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 sm:gap-6">
-        {/* Turn Indicator */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs sm:text-sm font-medium">
-            {currentPlayer === 1 ? 'Your Turn' : `${character.name}'s Turn`}
-          </span>
-          <div
-            className={`h-5 w-5 sm:h-6 sm:w-6 rounded-full shadow-md transition-all ${
-              currentPlayer === 1
-                ? 'bg-gradient-to-br from-red-600 to-red-800 ring-2 ring-red-400'
-                : 'bg-gradient-to-br from-gray-800 to-black ring-2 ring-gray-600'
-            }`}
-          />
-        </div>
-
-        {/* Disc Counts */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-gradient-to-br from-red-600 to-red-800 shadow-md" />
-            <span className="text-xs sm:text-sm font-medium">
-              You: <span className="font-bold">{whiteCount}</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-gradient-to-br from-gray-800 to-black shadow-md" />
-            <span className="text-xs sm:text-sm font-medium">
-              {character.name}: <span className="font-bold">{blackCount}</span>
-            </span>
-          </div>
-        </div>
-      </div>
     </div>
   )
-}
+})

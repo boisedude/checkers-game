@@ -1,8 +1,9 @@
 /**
  * Checkers Cell Component
- * Represents a single square on the checkers board
+ * Represents a single square on the checkers board with wood texture
  */
 
+import React from 'react'
 import type { CellValue } from '@/types/checkers.types'
 import { Piece } from './Piece'
 
@@ -14,9 +15,18 @@ interface CellProps {
   isHighlighted: boolean
   isSelected: boolean
   isDark: boolean
+  disabled?: boolean
+  isAnimating?: boolean
+  isJumpAnimation?: boolean
+  slideFromX?: number
+  slideFromY?: number
+  isBeingCaptured?: boolean
+  isBeingPromoted?: boolean
+  lastMoveFrom?: boolean
+  lastMoveTo?: boolean
 }
 
-export function Cell({
+export const Cell = React.memo(function Cell({
   row,
   col,
   piece,
@@ -24,31 +34,61 @@ export function Cell({
   isHighlighted,
   isSelected,
   isDark,
+  disabled = false,
+  isAnimating = false,
+  isJumpAnimation = false,
+  slideFromX = 0,
+  slideFromY = 0,
+  isBeingCaptured = false,
+  isBeingPromoted = false,
+  lastMoveFrom = false,
+  lastMoveTo = false,
 }: CellProps) {
   const handleClick = () => {
-    onClick(row, col)
+    if (!disabled) {
+      onClick(row, col)
+    }
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick(row, col)
+    }
+  }
+
+  // Base cell classes
   const baseClasses = `
     aspect-square
     flex items-center justify-center
     transition-all duration-200
     relative
     touch-manipulation
-    active:scale-95
   `
 
-  const bgClasses = isDark
-    ? 'bg-amber-900'
-    : 'bg-amber-100'
+  // Wood texture classes
+  const woodClasses = isDark ? 'wood-dark' : 'wood-light'
 
-  const highlightClasses = isHighlighted
-    ? 'ring-2 sm:ring-4 ring-green-400 ring-inset shadow-lg shadow-green-400/50'
-    : ''
+  // Highlight and selection classes
+  const stateClasses = isHighlighted
+    ? 'cell-highlighted'
+    : isSelected
+      ? 'cell-selected'
+      : ''
 
-  const cursorClasses = (piece !== null || isHighlighted)
-    ? 'cursor-pointer hover:brightness-110'
-    : ''
+  // Last move indicator classes
+  const lastMoveClasses =
+    (lastMoveFrom || lastMoveTo) && !isSelected && !isHighlighted
+      ? 'ring-2 ring-inset ring-amber-400/40'
+      : ''
+
+  // Cursor classes
+  const cursorClasses = disabled
+    ? ''
+    : piece !== null || isHighlighted
+      ? 'cursor-pointer hover:brightness-110 active:brightness-95'
+      : ''
 
   // Generate accessible label for the cell
   const columnLetter = String.fromCharCode(97 + col) // a-h
@@ -65,26 +105,45 @@ export function Cell({
 
   return (
     <div
-      className={`${baseClasses} ${bgClasses} ${highlightClasses} ${cursorClasses}`}
+      className={`${baseClasses} ${woodClasses} ${stateClasses} ${lastMoveClasses} ${cursorClasses}`}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       data-row={row}
       data-col={col}
       role="gridcell"
       aria-label={cellDescription}
       aria-selected={isSelected}
-      tabIndex={piece !== null || isHighlighted ? 0 : -1}
+      aria-disabled={disabled}
+      tabIndex={!disabled && (piece !== null || isHighlighted) ? 0 : -1}
     >
       {/* Highlight indicator for valid moves */}
       {isHighlighted && !piece && (
-        <div className="w-1/3 h-1/3 bg-green-400 rounded-full opacity-70 animate-pulse" />
+        <div className="valid-move-indicator animate-valid-move-glow" />
       )}
 
       {/* Piece */}
       {piece && (
-        <div className="w-4/5 h-4/5 p-0.5 sm:p-1">
-          <Piece piece={piece} isSelected={isSelected} />
+        <div
+          className="w-4/5 h-4/5 p-0.5 sm:p-1 relative z-10"
+          style={
+            isAnimating
+              ? ({
+                  '--slide-from-x': `${slideFromX}%`,
+                  '--slide-from-y': `${slideFromY}%`,
+                } as React.CSSProperties)
+              : undefined
+          }
+        >
+          <Piece
+            piece={piece}
+            isSelected={isSelected}
+            isAnimating={isAnimating}
+            isJumpAnimation={isJumpAnimation}
+            isBeingCaptured={isBeingCaptured}
+            isBeingPromoted={isBeingPromoted}
+          />
         </div>
       )}
     </div>
   )
-}
+})

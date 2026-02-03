@@ -3,7 +3,7 @@
  * Displays player statistics vs Coop with Checkers-specific metrics
  */
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ interface LeaderboardDialogProps {
   onUpdatePlayerName: (name: string) => void
 }
 
-export function LeaderboardDialog({
+export const LeaderboardDialog = React.memo(function LeaderboardDialog({
   open,
   onClose,
   stats,
@@ -159,7 +159,7 @@ export function LeaderboardDialog({
       </DialogContent>
     </Dialog>
   )
-}
+})
 
 function StatRow({
   label,

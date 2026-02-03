@@ -8,6 +8,7 @@ import { Board } from '@/components/Board'
 import { GameControls } from '@/components/GameControls'
 import { VictoryDialog } from '@/components/VictoryDialog'
 import { LeaderboardDialog } from '@/components/LeaderboardDialog'
+import { Tutorial } from '@/components/Tutorial'
 import { Button } from '@/components/ui/button'
 import { useCheckersGame } from '@/hooks/useCheckersGame'
 import { useLeaderboard } from '@/hooks/useLeaderboard'
@@ -15,14 +16,22 @@ import { useGameAudio } from '@/hooks/useGameAudio'
 import { useCharacterSelection } from '@/hooks/useCharacterSelection'
 import { useBentleyStats } from '@/hooks/useBentleyStats'
 import { useMainSiteBentleyStats } from '@/hooks/useMainSiteBentleyStats'
+import { STORAGE_KEYS } from '@/lib/storageKeys'
+
+/** Delay before showing tutorial on first visit (ms) */
+const TUTORIAL_SHOW_DELAY_MS = 500
 
 export function CheckersGame() {
   const {
     gameState,
     isAnimating,
+    animatingPiece,
+    capturedPiece,
+    promotedPiece,
     handleSquareClick,
     startNewGame,
     changeDifficulty,
+    undoMove,
     isHighlighted,
     isPieceSelected,
   } = useCheckersGame()
@@ -35,8 +44,36 @@ export function CheckersGame() {
 
   const [victoryDialogDismissed, setVictoryDialogDismissed] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
+  const [hasCompletedTutorial, setHasCompletedTutorial] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEYS.TUTORIAL_COMPLETED) === 'true'
+    } catch {
+      return false
+    }
+  })
   const prevStatusRef = useRef(gameState.status)
   const gameEndHandledRef = useRef(false)
+
+  // Show tutorial on first visit
+  useEffect(() => {
+    if (!hasCompletedTutorial) {
+      const timer = setTimeout(() => {
+        setShowTutorial(true)
+      }, TUTORIAL_SHOW_DELAY_MS)
+      return () => clearTimeout(timer)
+    }
+  }, [hasCompletedTutorial])
+
+  // Handle tutorial completion
+  const handleTutorialComplete = useCallback(() => {
+    setHasCompletedTutorial(true)
+    try {
+      localStorage.setItem(STORAGE_KEYS.TUTORIAL_COMPLETED, 'true')
+    } catch {
+      // localStorage may be unavailable or full - tutorial will show again on next visit
+    }
+  }, [])
 
   // Derive whether to show victory dialog from game state
   // Dialog shows when game ends and hasn't been dismissed
@@ -120,11 +157,42 @@ export function CheckersGame() {
     [changeDifficulty, changeCharacter]
   )
 
+  // Determine if undo is available
+  // In VS AI mode: can undo when it's player's turn and there's an undo state
+  // Don't allow undo during animations or AI thinking
+  const canUndo =
+    gameState.undoState !== null &&
+    gameState.status === 'playing' &&
+    gameState.currentPlayer === 1 &&
+    !isAnimating
+
+  // Keyboard shortcut for undo (U key)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't interfere with typing in inputs
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
+        return
+      }
+
+      // Handle U key for undo
+      if ((event.key === 'u' || event.key === 'U') && canUndo) {
+        event.preventDefault()
+        undoMove()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [canUndo, undoMove])
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-start bg-gradient-to-br from-gray-100 to-gray-200 p-2 sm:p-4 sm:justify-center">
       {/* Return to Arcade Button */}
       <div className="w-full max-w-2xl mb-3 sm:mb-4">
-        <a href="/arcade" className="block">
+        <a href="https://www.mcooper.com/arcade/" className="block">
           <Button
             variant="outline"
             className="w-full sm:w-auto h-10 sm:h-11 text-sm sm:text-base font-semibold border-2 hover:bg-gray-100 hover:border-gray-400"
@@ -176,6 +244,12 @@ export function CheckersGame() {
         {gameState.mustJump && gameState.currentPlayer === 1 && (
           <p className="text-sm text-red-600 font-semibold">You must jump!</p>
         )}
+        {gameState.currentPlayer === 2 && gameState.status === 'playing' && (
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-gray-800" />
+            <span className="text-sm text-gray-600">{character.name} is thinking...</span>
+          </div>
+        )}
       </div>
 
       {/* Board */}
@@ -185,6 +259,10 @@ export function CheckersGame() {
         isHighlighted={isHighlighted}
         isPieceSelected={isPieceSelected}
         disabled={isAnimating || gameState.status !== 'playing'}
+        lastMove={gameState.lastMove}
+        animatingPiece={animatingPiece}
+        capturedPiece={capturedPiece}
+        promotedPiece={promotedPiece}
       />
 
       {/* Game Controls */}
@@ -194,11 +272,11 @@ export function CheckersGame() {
           onDifficultyChange={handleDifficultyChange}
           onNewGame={handleNewGame}
           onShowLeaderboard={() => setShowLeaderboard(true)}
+          onShowHelp={() => setShowTutorial(true)}
+          onUndo={undoMove}
+          canUndo={canUndo}
           gameMode={gameState.mode}
-          currentPlayer={gameState.currentPlayer}
-          blackCount={gameState.blackCount}
-          whiteCount={gameState.redCount}
-          character={character}
+          gameStatus={gameState.status}
         />
       </div>
 
@@ -211,7 +289,7 @@ export function CheckersGame() {
           onPlayAgain={handleNewGame}
           onClose={() => setVictoryDialogDismissed(true)}
           blackCount={gameState.blackCount}
-          whiteCount={gameState.redCount}
+          redCount={gameState.redCount}
         />
       )}
 
@@ -225,6 +303,13 @@ export function CheckersGame() {
           onResetStats={resetStats}
         />
       )}
+
+      {/* Tutorial Dialog */}
+      <Tutorial
+        open={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        onComplete={handleTutorialComplete}
+      />
     </div>
   )
 }

@@ -12,13 +12,13 @@ import type {
   GameState,
   Piece,
 } from '@/types/checkers.types'
-import { DIRECTIONS, FORWARD_DIRECTIONS } from '@/types/checkers.types'
+import { BOARD_SIZE, DIRECTIONS, FORWARD_DIRECTIONS } from '@/types/checkers.types'
 
 /**
  * Creates an empty 8x8 board
  */
 export function createEmptyBoard(): Board {
-  return Array(8).fill(null).map(() => Array(8).fill(null))
+  return Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null))
 }
 
 /**
@@ -32,7 +32,7 @@ export function createInitialBoard(): Board {
 
   // Place Player 2 (Black/AI) pieces on rows 0-2
   for (let row = 0; row < 3; row++) {
-    for (let col = 0; col < 8; col++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
       // Only place on dark squares (where row + col is odd)
       if ((row + col) % 2 === 1) {
         board[row][col] = { player: 2, type: 'regular' }
@@ -41,8 +41,8 @@ export function createInitialBoard(): Board {
   }
 
   // Place Player 1 (Red/Player) pieces on rows 5-7
-  for (let row = 5; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
+  for (let row = 5; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
       // Only place on dark squares (where row + col is odd)
       if ((row + col) % 2 === 1) {
         board[row][col] = { player: 1, type: 'regular' }
@@ -57,7 +57,7 @@ export function createInitialBoard(): Board {
  * Checks if a position is on the board
  */
 export function isValidPosition(row: number, col: number): boolean {
-  return row >= 0 && row < 8 && col >= 0 && col < 8
+  return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE
 }
 
 /**
@@ -114,7 +114,7 @@ function getJumpMoves(
 
     // Check if piece becomes a king after this jump
     const becomesKing = piece.type === 'regular' &&
-      ((piece.player === 1 && landRow === 0) || (piece.player === 2 && landRow === 7))
+      ((piece.player === 1 && landRow === 0) || (piece.player === 2 && landRow === BOARD_SIZE - 1))
 
     // If becomes king, it can't continue jumping in the same turn (standard rules)
     const pieceAfterJump: Piece = becomesKing ? { ...piece, type: 'king' } : piece
@@ -206,8 +206,8 @@ export function getAllValidMoves(board: Board, player: Player): ValidMove[] {
   const allMoves: ValidMove[] = []
   const allJumps: ValidMove[] = []
 
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
       const piece = board[row][col]
       if (piece && piece.player === player) {
         const moves = getValidMovesForPiece(board, { row, col })
@@ -247,7 +247,7 @@ export function applyMove(board: Board, move: ValidMove): Board {
   // Check if piece should become a king
   if (piece.type === 'regular') {
     if ((piece.player === 1 && move.to.row === 0) ||
-        (piece.player === 2 && move.to.row === 7)) {
+        (piece.player === 2 && move.to.row === BOARD_SIZE - 1)) {
       newBoard[move.to.row][move.to.col] = { ...piece, type: 'king' }
     }
   }
@@ -269,8 +269,8 @@ export function countPieces(board: Board): {
   let redKings = 0
   let blackKings = 0
 
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 8; col++) {
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
       const piece = board[row][col]
       if (piece) {
         if (piece.player === 1) {
@@ -339,7 +339,8 @@ export function createInitialGameState(
     moveHistory: [],
     ...counts,
     validMoves,
-    mustJump: validMoves.some(m => m.jumps.length > 0)
+    mustJump: validMoves.some(m => m.jumps.length > 0),
+    undoState: null,
   }
 }
 

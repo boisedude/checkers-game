@@ -4,38 +4,38 @@
  * This tracks global Bentley stats across all games on the site
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'
 
 export interface MainSiteBentleyStats {
-  wins: number;
-  losses: number;
-  total: number;
-  winRate: number;
-  bentleyWinRate: number;
-  date: string;
+  wins: number
+  losses: number
+  total: number
+  winRate: number
+  bentleyWinRate: number
+  date: string
 }
 
-const API_BASE = 'https://www.mcooper.com/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://www.mcooper.com/api'
 
 export function useMainSiteBentleyStats() {
-  const [stats, setStats] = useState<MainSiteBentleyStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<MainSiteBentleyStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    fetchStats()
+  }, [])
 
   const fetchStats = async () => {
     try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE}/bentley-stats.php`);
+      setLoading(true)
+      const response = await fetch(`${API_BASE}/bentley-stats.php`)
 
       if (!response.ok) {
-        throw new Error('Failed to fetch stats');
+        throw new Error('Failed to fetch stats')
       }
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (data.success) {
         setStats({
@@ -44,13 +44,13 @@ export function useMainSiteBentleyStats() {
           total: data.total,
           winRate: data.winRate,
           bentleyWinRate: data.bentleyWinRate,
-          date: data.date
-        });
+          date: data.date,
+        })
       } else {
-        throw new Error('Invalid response from API');
+        throw new Error('Invalid response from API')
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : 'Unknown error')
 
       // Set mock data for development/testing
       setStats({
@@ -59,36 +59,36 @@ export function useMainSiteBentleyStats() {
         total: 0,
         winRate: 0,
         bentleyWinRate: 0,
-        date: new Date().toISOString().split('T')[0]
-      });
+        date: new Date().toISOString().split('T')[0],
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   /**
    * Record when Bentley wins (player loses)
    */
   const recordBentleyWin = async () => {
     try {
-      await fetch(`${API_BASE}/bentley-win.php`, { method: 'POST' });
-      await fetchStats(); // Refresh stats
+      await fetch(`${API_BASE}/bentley-win.php`, { method: 'POST' })
+      await fetchStats() // Refresh stats
     } catch {
       // Network error - stats update silently fails
     }
-  };
+  }
 
   /**
    * Record when Bentley loses (player wins)
    */
   const recordBentleyLoss = async () => {
     try {
-      await fetch(`${API_BASE}/bentley-loss.php`, { method: 'POST' });
-      await fetchStats(); // Refresh stats
+      await fetch(`${API_BASE}/bentley-loss.php`, { method: 'POST' })
+      await fetchStats() // Refresh stats
     } catch {
       // Network error - stats update silently fails
     }
-  };
+  }
 
   return {
     stats,
@@ -96,6 +96,6 @@ export function useMainSiteBentleyStats() {
     error,
     recordBentleyWin, // Call when Bentley wins (player loses)
     recordBentleyLoss, // Call when Bentley loses (player wins)
-    refresh: fetchStats
-  };
+    refresh: fetchStats,
+  }
 }

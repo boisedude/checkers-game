@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { GameState, Difficulty, Position } from '@/types/checkers.types'
+import type { GameState, Difficulty, Position, ValidMove, UndoState } from '@/types/checkers.types'
 import {
   createInitialGameState,
   getAllValidMoves,
@@ -14,9 +14,19 @@ import {
   countPieces,
 } from '@/lib/checkersRules'
 import { getAIMove } from '@/lib/aiStrategies'
+import {
+  AI_MOVE_DELAY,
+  MOVE_ANIMATION_DURATION,
+  JUMP_ANIMATION_DURATION,
+  CAPTURE_ANIMATION_DURATION,
+  PROMOTION_ANIMATION_DURATION,
+} from '@/lib/animationConstants'
 
-const AI_MOVE_DELAY = 600 // ms
-const MOVE_ANIMATION_DELAY = 200 // ms
+interface AnimatingPiece {
+  from: Position
+  to: Position
+  isJump: boolean
+}
 
 export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
   const [gameState, setGameState] = useState<GameState>(() =>
@@ -26,21 +36,104 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
   const [isAnimating, setIsAnimating] = useState(false)
   const [highlightedSquares, setHighlightedSquares] = useState<Position[]>([])
 
+  // Animation state
+  const [animatingPiece, setAnimatingPiece] = useState<AnimatingPiece | null>(null)
+  const [capturedPiece, setCapturedPiece] = useState<Position | null>(null)
+  const [promotedPiece, setPromotedPiece] = useState<Position | null>(null)
+
   const aiMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const animationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const aiMoveScheduledRef = useRef(false)
 
-  // Cleanup on unmount
+  // Cleanup AI move timeout on unmount
   useEffect(() => {
     return () => {
       if (aiMoveTimeoutRef.current) {
         clearTimeout(aiMoveTimeoutRef.current)
       }
-      if (animationTimeoutRef.current) {
-        clearTimeout(animationTimeoutRef.current)
-      }
     }
   }, [])
+
+  /**
+   * Execute a move with full animation sequence
+   */
+  const executeAnimatedMove = useCallback(
+    async (
+      move: ValidMove,
+      player: 1 | 2,
+      prevBoard: GameState['board']
+    ): Promise<void> => {
+      const isJump = move.jumps.length > 0
+      const animationDuration = isJump ? JUMP_ANIMATION_DURATION : MOVE_ANIMATION_DURATION
+
+      // For multi-jump moves, we animate each jump sequentially
+      if (move.jumps.length > 1) {
+        // Multi-jump chain animation
+        let currentFrom = move.from
+
+        for (let i = 0; i < move.jumps.length; i++) {
+          const jump = move.jumps[i]
+
+          // Set animating piece for this jump
+          setAnimatingPiece({
+            from: currentFrom,
+            to: jump.to,
+            isJump: true,
+          })
+
+          // Set captured piece
+          setCapturedPiece(jump.captured)
+
+          // Wait for jump animation
+          await new Promise(resolve => setTimeout(resolve, JUMP_ANIMATION_DURATION))
+
+          // Clear capture animation
+          setCapturedPiece(null)
+
+          // Wait a bit for capture to fade
+          await new Promise(resolve => setTimeout(resolve, CAPTURE_ANIMATION_DURATION / 2))
+
+          currentFrom = jump.to
+        }
+
+        setAnimatingPiece(null)
+      } else {
+        // Single move or single jump
+        setAnimatingPiece({
+          from: move.from,
+          to: move.to,
+          isJump,
+        })
+
+        if (isJump && move.jumps[0]) {
+          setCapturedPiece(move.jumps[0].captured)
+        }
+
+        // Wait for move animation
+        await new Promise(resolve => setTimeout(resolve, animationDuration))
+
+        if (isJump) {
+          // Wait for capture animation
+          await new Promise(resolve => setTimeout(resolve, CAPTURE_ANIMATION_DURATION / 2))
+          setCapturedPiece(null)
+        }
+
+        setAnimatingPiece(null)
+      }
+
+      // Check if piece will be promoted
+      const pieceBeforeMove = prevBoard[move.from.row][move.from.col]
+      const willBeKing =
+        pieceBeforeMove?.type === 'regular' &&
+        ((player === 1 && move.to.row === 0) || (player === 2 && move.to.row === 7))
+
+      if (willBeKing) {
+        setPromotedPiece(move.to)
+        await new Promise(resolve => setTimeout(resolve, PROMOTION_ANIMATION_DURATION))
+        setPromotedPiece(null)
+      }
+    },
+    []
+  )
 
   // Handle AI move when it's AI's turn (Player 2 = Black)
   useEffect(() => {
@@ -53,53 +146,56 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     ) {
       aiMoveScheduledRef.current = true
 
-      aiMoveTimeoutRef.current = setTimeout(() => {
+      aiMoveTimeoutRef.current = setTimeout(async () => {
         try {
           const aiMove = getAIMove(gameState.board, 2, gameState.difficulty)
 
           if (aiMove) {
             setIsAnimating(true)
 
-            animationTimeoutRef.current = setTimeout(() => {
-              setGameState(prevState => {
-                try {
-                  const newBoard = applyMove(prevState.board, aiMove)
-                  const counts = countPieces(newBoard)
-                  const nextPlayer = prevState.currentPlayer === 1 ? 2 : 1
-                  const gameOver = checkGameOver(newBoard, nextPlayer)
-                  const validMoves = gameOver.isOver ? [] : getAllValidMoves(newBoard, nextPlayer)
+            // Run animation sequence
+            await executeAnimatedMove(aiMove, 2, gameState.board)
 
-                  const move = {
-                    from: aiMove.from,
-                    to: aiMove.to,
-                    jumps: aiMove.jumps,
-                    player: prevState.currentPlayer,
-                    becameKing: false, // We'll detect this from board state if needed
-                  }
+            // Apply move to state
+            setGameState(prevState => {
+              try {
+                const newBoard = applyMove(prevState.board, aiMove)
+                const counts = countPieces(newBoard)
+                const nextPlayer = prevState.currentPlayer === 1 ? 2 : 1
+                const gameOver = checkGameOver(newBoard, nextPlayer)
+                const validMoves = gameOver.isOver ? [] : getAllValidMoves(newBoard, nextPlayer)
 
-                  return {
-                    ...prevState,
-                    board: newBoard,
-                    currentPlayer: nextPlayer,
-                    status: gameOver.isOver ? (gameOver.isDraw ? 'draw' : 'won') : 'playing',
-                    winner: gameOver.winner,
-                    moveHistory: [...prevState.moveHistory, move],
-                    lastMove: move,
-                    ...counts,
-                    validMoves,
-                    mustJump: validMoves.some(m => m.jumps.length > 0),
-                  }
-                } catch {
-                  // AI move execution failed - return previous state
-                  return prevState
+                const move = {
+                  from: aiMove.from,
+                  to: aiMove.to,
+                  jumps: aiMove.jumps,
+                  player: prevState.currentPlayer,
+                  becameKing: false,
                 }
-              })
-              setIsAnimating(false)
-              animationTimeoutRef.current = null
-            }, MOVE_ANIMATION_DELAY)
+
+                return {
+                  ...prevState,
+                  board: newBoard,
+                  currentPlayer: nextPlayer,
+                  status: gameOver.isOver ? (gameOver.isDraw ? 'draw' : 'won') : 'playing',
+                  winner: gameOver.winner,
+                  moveHistory: [...prevState.moveHistory, move],
+                  lastMove: move,
+                  ...counts,
+                  validMoves,
+                  mustJump: validMoves.some(m => m.jumps.length > 0),
+                  // Clear undo state on game over, otherwise preserve it
+                  // so player can undo both their move and AI's response
+                  undoState: gameOver.isOver ? null : prevState.undoState,
+                }
+              } catch {
+                return prevState
+              }
+            })
+
+            setIsAnimating(false)
           }
         } catch {
-          // AI move failed - reset animation state
           setIsAnimating(false)
         } finally {
           aiMoveScheduledRef.current = false
@@ -120,13 +216,14 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     gameState.board,
     gameState.difficulty,
     isAnimating,
+    executeAnimatedMove,
   ])
 
   /**
    * Handles clicking on a square
    */
   const handleSquareClick = useCallback(
-    (row: number, col: number) => {
+    async (row: number, col: number) => {
       if (isAnimating || gameState.status !== 'playing' || gameState.currentPlayer !== 1) {
         return
       }
@@ -158,54 +255,71 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
         )
 
         if (validMove) {
-          // Execute the move
+          // Execute the move with animation
           setIsAnimating(true)
+          const savedSelectedPiece = { ...selectedPiece }
           setSelectedPiece(null)
           setHighlightedSquares([])
 
-          animationTimeoutRef.current = setTimeout(() => {
-            setGameState(prevState => {
-              try {
-                const newBoard = applyMove(prevState.board, validMove)
-                const counts = countPieces(newBoard)
-                const nextPlayer = prevState.currentPlayer === 1 ? 2 : 1
-                const gameOver = checkGameOver(newBoard, nextPlayer)
-                const validMoves = gameOver.isOver ? [] : getAllValidMoves(newBoard, nextPlayer)
+          // Run animation sequence
+          await executeAnimatedMove(validMove, 1, gameState.board)
 
-                // Check if piece became king
-                const pieceAfterMove = newBoard[validMove.to.row][validMove.to.col]
-                const pieceBefore = prevState.board[selectedPiece.row][selectedPiece.col]
-                const becameKing =
-                  pieceAfterMove?.type === 'king' && pieceBefore?.type === 'regular'
+          // Apply move to state
+          setGameState(prevState => {
+            try {
+              const newBoard = applyMove(prevState.board, validMove)
+              const counts = countPieces(newBoard)
+              const nextPlayer = prevState.currentPlayer === 1 ? 2 : 1
+              const gameOver = checkGameOver(newBoard, nextPlayer)
+              const validMoves = gameOver.isOver ? [] : getAllValidMoves(newBoard, nextPlayer)
 
-                const move = {
-                  from: validMove.from,
-                  to: validMove.to,
-                  jumps: validMove.jumps,
-                  player: prevState.currentPlayer,
-                  becameKing,
-                }
+              // Check if piece became king
+              const pieceAfterMove = newBoard[validMove.to.row][validMove.to.col]
+              const pieceBefore = prevState.board[savedSelectedPiece.row][savedSelectedPiece.col]
+              const becameKing =
+                pieceAfterMove?.type === 'king' && pieceBefore?.type === 'regular'
 
-                return {
-                  ...prevState,
-                  board: newBoard,
-                  currentPlayer: nextPlayer,
-                  status: gameOver.isOver ? (gameOver.isDraw ? 'draw' : 'won') : 'playing',
-                  winner: gameOver.winner,
-                  moveHistory: [...prevState.moveHistory, move],
-                  lastMove: move,
-                  ...counts,
-                  validMoves,
-                  mustJump: validMoves.some(m => m.jumps.length > 0),
-                }
-              } catch {
-                // Move execution failed - return previous state
-                return prevState
+              const move = {
+                from: validMove.from,
+                to: validMove.to,
+                jumps: validMove.jumps,
+                player: prevState.currentPlayer,
+                becameKing,
               }
-            })
-            setIsAnimating(false)
-            animationTimeoutRef.current = null
-          }, MOVE_ANIMATION_DELAY)
+
+              // Save undo state before applying the move (player 1's move)
+              const undoState: UndoState = {
+                board: prevState.board,
+                currentPlayer: prevState.currentPlayer,
+                lastMove: prevState.lastMove,
+                redCount: prevState.redCount,
+                blackCount: prevState.blackCount,
+                redKings: prevState.redKings,
+                blackKings: prevState.blackKings,
+                validMoves: prevState.validMoves,
+                mustJump: prevState.mustJump,
+              }
+
+              return {
+                ...prevState,
+                board: newBoard,
+                currentPlayer: nextPlayer,
+                status: gameOver.isOver ? (gameOver.isDraw ? 'draw' : 'won') : 'playing',
+                winner: gameOver.winner,
+                moveHistory: [...prevState.moveHistory, move],
+                lastMove: move,
+                ...counts,
+                validMoves,
+                mustJump: validMoves.some(m => m.jumps.length > 0),
+                // Only save undo state if game is not over (can't undo after game ends)
+                undoState: gameOver.isOver ? null : undoState,
+              }
+            } catch {
+              return prevState
+            }
+          })
+
+          setIsAnimating(false)
         } else {
           // Clicked on invalid square, deselect
           setSelectedPiece(null)
@@ -220,6 +334,7 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
       gameState.mustJump,
       selectedPiece,
       isAnimating,
+      executeAnimatedMove,
     ]
   )
 
@@ -231,6 +346,9 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     setSelectedPiece(null)
     setHighlightedSquares([])
     setIsAnimating(false)
+    setAnimatingPiece(null)
+    setCapturedPiece(null)
+    setPromotedPiece(null)
   }, [gameState.difficulty])
 
   /**
@@ -242,6 +360,56 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
       difficulty: newDifficulty,
     }))
   }, [])
+
+  /**
+   * Undo the last move(s)
+   * In VS AI mode: Undoes both player's move and AI's response
+   * In PvP mode: Undoes the last single move
+   */
+  const undoMove = useCallback(() => {
+    // Don't allow undo during animations
+    if (isAnimating) return
+
+    setGameState(prevState => {
+      // Check if undo is available
+      if (!prevState.undoState) return prevState
+      if (prevState.status !== 'playing') return prevState
+
+      // In VS AI mode, only allow undo when it's player's turn
+      // (after AI has responded to player's move)
+      if (prevState.mode === 'pvc' && prevState.currentPlayer !== 1) return prevState
+
+      const { undoState } = prevState
+
+      // Remove the moves from history
+      // In VS AI mode, remove both player's and AI's moves (last 2 moves)
+      // In PvP mode, remove just the last move
+      const movesToRemove = prevState.mode === 'pvc' ? 2 : 1
+      const newMoveHistory = prevState.moveHistory.slice(0, -movesToRemove)
+      const newLastMove = newMoveHistory.length > 0
+        ? newMoveHistory[newMoveHistory.length - 1]
+        : undefined
+
+      return {
+        ...prevState,
+        board: undoState.board,
+        currentPlayer: undoState.currentPlayer,
+        lastMove: newLastMove,
+        redCount: undoState.redCount,
+        blackCount: undoState.blackCount,
+        redKings: undoState.redKings,
+        blackKings: undoState.blackKings,
+        validMoves: undoState.validMoves,
+        mustJump: undoState.mustJump,
+        moveHistory: newMoveHistory,
+        undoState: null, // Clear undo state after using it (one undo per player move)
+      }
+    })
+
+    // Clear any selection state
+    setSelectedPiece(null)
+    setHighlightedSquares([])
+  }, [isAnimating])
 
   /**
    * Checks if a square is highlighted (valid move destination)
@@ -268,9 +436,13 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     selectedPiece,
     isAnimating,
     highlightedSquares,
+    animatingPiece,
+    capturedPiece,
+    promotedPiece,
     handleSquareClick,
     startNewGame,
     changeDifficulty,
+    undoMove,
     isHighlighted,
     isPieceSelected,
   }

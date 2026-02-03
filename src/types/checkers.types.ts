@@ -61,6 +61,19 @@ export interface ValidMove {
   score?: number // For AI evaluation
 }
 
+// Undo state for restoring previous game state
+export interface UndoState {
+  board: Board
+  currentPlayer: Player
+  lastMove?: Move
+  redCount: number
+  blackCount: number
+  redKings: number
+  blackKings: number
+  validMoves: ValidMove[]
+  mustJump: boolean
+}
+
 // Complete game state
 export interface GameState {
   board: Board
@@ -78,6 +91,7 @@ export interface GameState {
   validMoves: ValidMove[] // Valid moves for current player
   selectedPiece?: Position // Currently selected piece (for UI)
   mustJump: boolean // True if current player must make a jump
+  undoState: UndoState | null // State before player's move for undo
 }
 
 // Leaderboard entry
@@ -89,7 +103,6 @@ export interface LeaderboardEntry {
   winStreak: number
   longestWinStreak: number
   totalCaptures: number // Total pieces captured
-  kingsCreated: number // Total kings created
   perfectGames: number // Games where opponent had 0 pieces
   totalGames: number
   multiJumps: number // Number of times performed multi-jump moves

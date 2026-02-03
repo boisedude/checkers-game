@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { STORAGE_KEYS } from '@/lib/storageKeys'
 
 type SoundEffect = 'discFlip' | 'discPlace' | 'victory' | 'defeat' | 'draw' | 'click' | 'hover'
 
@@ -34,7 +35,7 @@ type WebkitWindow = Window &
 
 export function useGameAudio() {
   const [isMuted, setIsMuted] = useState(() => {
-    return localStorage.getItem('checkers-audio-muted') === 'true'
+    return localStorage.getItem(STORAGE_KEYS.AUDIO_MUTED) === 'true'
   })
 
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -63,7 +64,7 @@ export function useGameAudio() {
   const toggleMute = useCallback(() => {
     setIsMuted(prev => {
       const newValue = !prev
-      localStorage.setItem('checkers-audio-muted', String(newValue))
+      localStorage.setItem(STORAGE_KEYS.AUDIO_MUTED, String(newValue))
       return newValue
     })
   }, [])

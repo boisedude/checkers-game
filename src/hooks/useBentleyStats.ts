@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import { STORAGE_KEYS } from '@/lib/storageKeys'
 
 export interface BentleyStats {
   gamesPlayed: number
@@ -15,7 +16,6 @@ export interface BentleyStats {
   bestMargin: number // Best winning margin against Bentley
 }
 
-const STORAGE_KEY = 'checkers-bentley-stats'
 
 /**
  * Type guard to validate BentleyStats structure
@@ -60,7 +60,7 @@ function getDefaultStats(): BentleyStats {
 
 function loadStats(): BentleyStats {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(STORAGE_KEYS.BENTLEY_STATS)
     if (stored) {
       const data = JSON.parse(stored)
 
@@ -69,13 +69,13 @@ function loadStats(): BentleyStats {
         return data
       } else {
         // Clear corrupted data
-        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(STORAGE_KEYS.BENTLEY_STATS)
       }
     }
   } catch {
     // Clear corrupted data
     try {
-      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(STORAGE_KEYS.BENTLEY_STATS)
     } catch {
       // Ignore errors when trying to clear
     }
@@ -86,7 +86,7 @@ function loadStats(): BentleyStats {
 
 function saveStats(stats: BentleyStats): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stats))
+    localStorage.setItem(STORAGE_KEYS.BENTLEY_STATS, JSON.stringify(stats))
   } catch {
     // Silently fail - stats will be lost but game continues
   }
