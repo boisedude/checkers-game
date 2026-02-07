@@ -1,6 +1,9 @@
 /**
  * Bentley Stats Hook
- * Track special stats when playing against Bentley (hard difficulty)
+ *
+ * Exports: useBentleyStats() -> { bentleyStats, recordBentleyWin/Loss/Draw, resetBentleyStats }
+ * Local-only stats for games against Bentley (hard). Persisted in localStorage.
+ * Separate from the main leaderboard -- tracks Bentley-specific metrics like close calls.
  */
 
 import { useState, useCallback, useEffect } from 'react'
@@ -10,17 +13,13 @@ export interface BentleyStats {
   gamesPlayed: number
   gamesWon: number
   gamesLost: number
-  perfectGames: number // Games where you beat Bentley with 0 discs for him
-  closeCalls: number // Games lost by 3 or fewer discs
-  totalFlips: number
+  perfectGames: number // Games where Bentley had 0 pieces left
+  closeCalls: number // Games lost by 3 or fewer pieces
+  totalCaptures: number
   bestMargin: number // Best winning margin against Bentley
 }
 
-
-/**
- * Type guard to validate BentleyStats structure
- * Protects against corrupted or malicious localStorage data
- */
+/** Type guard for BentleyStats from localStorage. */
 function isValidBentleyStats(data: unknown): data is BentleyStats {
   if (!data || typeof data !== 'object') {
     return false
@@ -39,8 +38,8 @@ function isValidBentleyStats(data: unknown): data is BentleyStats {
     stats.perfectGames >= 0 &&
     typeof stats.closeCalls === 'number' &&
     stats.closeCalls >= 0 &&
-    typeof stats.totalFlips === 'number' &&
-    stats.totalFlips >= 0 &&
+    typeof stats.totalCaptures === 'number' &&
+    stats.totalCaptures >= 0 &&
     typeof stats.bestMargin === 'number' &&
     stats.bestMargin >= 0
   )
@@ -53,7 +52,7 @@ function getDefaultStats(): BentleyStats {
     gamesLost: 0,
     perfectGames: 0,
     closeCalls: 0,
-    totalFlips: 0,
+    totalCaptures: 0,
     bestMargin: 0,
   }
 }
@@ -74,10 +73,12 @@ function loadStats(): BentleyStats {
     }
   } catch {
     // Clear corrupted data
+    console.warn('checkers: localStorage unavailable')
     try {
       localStorage.removeItem(STORAGE_KEYS.BENTLEY_STATS)
     } catch {
       // Ignore errors when trying to clear
+      console.warn('checkers: localStorage unavailable')
     }
   }
 
@@ -89,6 +90,7 @@ function saveStats(stats: BentleyStats): void {
     localStorage.setItem(STORAGE_KEYS.BENTLEY_STATS, JSON.stringify(stats))
   } catch {
     // Silently fail - stats will be lost but game continues
+    console.warn('checkers: localStorage unavailable')
   }
 }
 
@@ -100,32 +102,32 @@ export function useBentleyStats() {
     saveStats(stats)
   }, [stats])
 
-  const recordBentleyWin = useCallback((margin: number, totalFlips: number, isPerfect: boolean) => {
+  const recordBentleyWin = useCallback((margin: number, totalCaptures: number, isPerfect: boolean) => {
     setStats(prev => ({
       ...prev,
       gamesPlayed: prev.gamesPlayed + 1,
       gamesWon: prev.gamesWon + 1,
-      totalFlips: prev.totalFlips + totalFlips,
+      totalCaptures: prev.totalCaptures + totalCaptures,
       perfectGames: isPerfect ? prev.perfectGames + 1 : prev.perfectGames,
       bestMargin: margin > prev.bestMargin ? margin : prev.bestMargin,
     }))
   }, [])
 
-  const recordBentleyLoss = useCallback((margin: number, totalFlips: number) => {
+  const recordBentleyLoss = useCallback((margin: number, totalCaptures: number) => {
     setStats(prev => ({
       ...prev,
       gamesPlayed: prev.gamesPlayed + 1,
       gamesLost: prev.gamesLost + 1,
-      totalFlips: prev.totalFlips + totalFlips,
+      totalCaptures: prev.totalCaptures + totalCaptures,
       closeCalls: margin <= 3 ? prev.closeCalls + 1 : prev.closeCalls,
     }))
   }, [])
 
-  const recordBentleyDraw = useCallback((totalFlips: number) => {
+  const recordBentleyDraw = useCallback((totalCaptures: number) => {
     setStats(prev => ({
       ...prev,
       gamesPlayed: prev.gamesPlayed + 1,
-      totalFlips: prev.totalFlips + totalFlips,
+      totalCaptures: prev.totalCaptures + totalCaptures,
     }))
   }, [])
 

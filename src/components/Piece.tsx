@@ -1,11 +1,14 @@
 /**
- * Checkers Piece Component
- * Renders a premium checker piece with 3D effects, shiny look, and animations
+ * Piece Component
+ *
+ * Renders a checker piece with 3D stacked effect for kings. Applies CSS animation
+ * classes based on state: slide, jump, capture fade, king promotion, selection glow.
+ * Crown SVG shown for kings with optional appear animation via isBeingPromoted.
  */
 
-import React, { useState, useEffect, useRef } from 'react'
+import React from 'react'
 import type { Piece as PieceType } from '@/types/checkers.types'
-import { PROMOTION_ANIMATION_DURATION } from '@/lib/animationConstants'
+import { cn } from '@/lib/utils'
 
 interface PieceProps {
   piece: PieceType
@@ -24,52 +27,10 @@ export const Piece = React.memo(function Piece({
   isBeingCaptured = false,
   isBeingPromoted = false,
 }: PieceProps) {
-  const [showCrownAnimation, setShowCrownAnimation] = useState(false)
-  const wasBeingPromotedRef = useRef(false)
-
-  // Track when piece becomes king for animation
-  // Only trigger animation on transition from false to true
-  useEffect(() => {
-    if (isBeingPromoted && !wasBeingPromotedRef.current) {
-      // Schedule the state update asynchronously to avoid cascading renders
-      const startTimer = setTimeout(() => setShowCrownAnimation(true), 0)
-      const endTimer = setTimeout(() => setShowCrownAnimation(false), PROMOTION_ANIMATION_DURATION)
-      wasBeingPromotedRef.current = true
-      return () => {
-        clearTimeout(startTimer)
-        clearTimeout(endTimer)
-      }
-    }
-    if (!isBeingPromoted) {
-      wasBeingPromotedRef.current = false
-    }
-  }, [isBeingPromoted])
-
   const isKing = piece.type === 'king'
   const isRed = piece.player === 1
 
-  // Base piece classes
-  const baseClasses = `
-    w-full h-full rounded-full
-    flex items-center justify-center
-    cursor-pointer
-    relative
-    transition-transform duration-200
-  `
-
-  // Premium piece color classes
-  const colorClasses = isRed ? 'piece-red' : 'piece-black'
-
-  // King stacked effect classes
-  const kingClasses = isKing ? 'piece-king' : ''
-
-  // Selected state classes
-  const selectedClasses = isSelected
-    ? 'piece-selected animate-selected-glow'
-    : ''
-
-  // Animation classes
-  const animationClasses = isBeingCaptured
+  const animationClass = isBeingCaptured
     ? 'animate-piece-capture'
     : isBeingPromoted
       ? 'animate-king-promotion'
@@ -83,14 +44,20 @@ export const Piece = React.memo(function Piece({
 
   return (
     <div
-      className={`${baseClasses} ${colorClasses} ${kingClasses} ${selectedClasses} ${animationClasses}`}
+      className={cn(
+        'w-full h-full rounded-full flex items-center justify-center cursor-pointer relative transition-transform duration-200',
+        isRed ? 'piece-red' : 'piece-black',
+        isKing && 'piece-king',
+        isSelected && 'piece-selected animate-selected-glow',
+        animationClass,
+      )}
       role="img"
       aria-label={pieceLabel}
     >
-      {/* King crown with animation */}
+      {/* King crown - animate on promotion via isBeingPromoted prop */}
       {isKing && (
         <div
-          className={`king-crown text-lg sm:text-2xl font-bold ${showCrownAnimation ? 'animate-crown-appear' : ''}`}
+          className={cn('king-crown text-lg sm:text-2xl font-bold', isBeingPromoted && 'animate-crown-appear')}
           aria-hidden="true"
         >
           <svg
@@ -109,9 +76,10 @@ export const Piece = React.memo(function Piece({
       {/* Stacked piece effect for kings - second layer */}
       {isKing && (
         <div
-          className={`absolute -bottom-1 sm:-bottom-1.5 left-1/2 -translate-x-1/2 w-[85%] h-[85%] rounded-full -z-10
-            ${isRed ? 'bg-gradient-to-b from-red-800 to-red-950' : 'bg-gradient-to-b from-gray-800 to-black'}
-          `}
+          className={cn(
+            'absolute -bottom-1 sm:-bottom-1.5 left-1/2 -translate-x-1/2 w-[85%] h-[85%] rounded-full -z-10',
+            isRed ? 'bg-gradient-to-b from-red-800 to-red-950' : 'bg-gradient-to-b from-gray-800 to-black',
+          )}
           style={{
             boxShadow: '0 3px 6px rgba(0,0,0,0.4)',
           }}
@@ -122,9 +90,10 @@ export const Piece = React.memo(function Piece({
       {/* Additional stacked layer for extra depth */}
       {isKing && (
         <div
-          className={`absolute -bottom-2 sm:-bottom-2.5 left-1/2 -translate-x-1/2 w-[75%] h-[75%] rounded-full -z-20
-            ${isRed ? 'bg-gradient-to-b from-red-900 to-red-950' : 'bg-gradient-to-b from-gray-900 to-black'}
-          `}
+          className={cn(
+            'absolute -bottom-2 sm:-bottom-2.5 left-1/2 -translate-x-1/2 w-[75%] h-[75%] rounded-full -z-20',
+            isRed ? 'bg-gradient-to-b from-red-900 to-red-950' : 'bg-gradient-to-b from-gray-900 to-black',
+          )}
           style={{
             boxShadow: '0 4px 8px rgba(0,0,0,0.5)',
           }}

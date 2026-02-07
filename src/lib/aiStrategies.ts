@@ -1,6 +1,10 @@
 /**
  * Checkers AI Strategies
- * Implements minimax with alpha-beta pruning for different difficulty levels
+ *
+ * Exports: getAIMove(board, player, difficulty) -> ValidMove | null.
+ * Uses minimax with alpha-beta pruning. Each difficulty has different:
+ * - Search depth (2/4/6), evaluation weights, and randomness factor.
+ * Easy (Bella) plays randomly 30% of the time. Hard (Bentley) never does.
  */
 
 import type { Board, Player, ValidMove, Difficulty } from '@/types/checkers.types'
@@ -13,9 +17,9 @@ import {
 
 // AI search depth by difficulty level
 const AI_DEPTH = {
-  easy: 2,    // Bella: very shallow search
-  medium: 4,  // Coop: moderate search
-  hard: 6,    // Bentley: deep search
+  easy: 2,    // Bella: shallow search keeps her fast and beatable
+  medium: 4,  // Coop: deep enough for decent tactics, still quick to compute
+  hard: 6,    // Bentley: deep search for near-optimal play within performance budget
 } as const
 
 // Scoring constants for game evaluation
@@ -24,42 +28,38 @@ const SCORE = {
   LOSS: -10000,
 } as const
 
-// Random move chance for easy difficulty (20%)
-const EASY_RANDOM_MOVE_CHANCE = 0.2
-
-/**
- * Evaluation weights for different difficulty levels
- */
+/** Board evaluation weights per difficulty. Higher values = stronger positional play. */
 const EVAL_WEIGHTS = {
+  // Easy (Bella): low king bonus and minimal positional awareness make her exploitable
   easy: {
-    piece: 100,
-    king: 150,
-    backRow: 10,
-    center: 5,
-    mobility: 1,
-    randomness: 0.3, // 30% chance of random move
+    piece: 100,       // Base material value; same across all levels
+    king: 150,        // Only 1.5x a regular piece -- undervalues promotion
+    backRow: 10,      // Slight awareness of back-row defense
+    center: 5,        // Barely considers center control
+    mobility: 1,      // Nearly ignores move availability
+    randomness: 0.3,  // 30% chance of a random move to create openings for the player
   },
+  // Medium (Coop): balanced weights reward solid positional play without being ruthless
   medium: {
-    piece: 100,
-    king: 180,
-    backRow: 15,
-    center: 10,
-    mobility: 2,
-    randomness: 0.05, // 5% chance of random move
+    piece: 100,       // Base material value
+    king: 180,        // Kings valued ~2x a piece -- encourages promotion
+    backRow: 15,      // Moderate back-row protection to block easy kings
+    center: 10,       // Rewards controlling the center of the board
+    mobility: 2,      // Values having more move options than the opponent
+    randomness: 0.05, // 5% random moves add slight unpredictability
   },
+  // Hard (Bentley): maximized positional weights for ruthless, optimal play
   hard: {
-    piece: 100,
-    king: 200,
-    backRow: 20,
-    center: 15,
-    mobility: 3,
-    randomness: 0, // No randomness
+    piece: 100,       // Base material value
+    king: 200,        // Kings worth 2x a piece -- strongly pursues promotion
+    backRow: 20,      // Prioritizes back-row defense to deny opponent kings
+    center: 15,       // Aggressively fights for central board dominance
+    mobility: 3,      // Heavily penalizes positions with fewer available moves
+    randomness: 0,    // No randomness -- always plays the best evaluated move
   },
 }
 
-/**
- * Center squares (more valuable for board control)
- */
+/** Center 4x4 region -- controlling these squares gives positional advantage. */
 const CENTER_SQUARES = new Set([
   '2,2', '2,3', '2,4', '2,5',
   '3,2', '3,3', '3,4', '3,5',
@@ -67,10 +67,7 @@ const CENTER_SQUARES = new Set([
   '5,2', '5,3', '5,4', '5,5',
 ])
 
-/**
- * Evaluates the board position for a player
- * Positive score = good for player, negative = bad for player
- */
+/** Evaluates board position. Positive = good for player. Considers material, position, mobility. */
 function evaluateBoard(
   board: Board,
   player: Player,
@@ -123,9 +120,7 @@ function evaluateBoard(
   return score
 }
 
-/**
- * Minimax algorithm with alpha-beta pruning
- */
+/** Minimax with alpha-beta pruning. Returns best score and associated move. */
 function minimax(
   board: Board,
   depth: number,
@@ -201,9 +196,7 @@ function minimax(
   }
 }
 
-/**
- * Gets the best move for the AI
- */
+/** Main AI entry point. Returns the best move for the given player and difficulty. */
 export function getAIMove(
   board: Board,
   player: Player,
@@ -221,13 +214,6 @@ export function getAIMove(
 
   // Determine search depth based on difficulty
   const depth = AI_DEPTH[difficulty]
-
-  // For easy mode, occasionally make a suboptimal move
-  if (difficulty === 'easy' && validMoves.length > 1 && Math.random() < EASY_RANDOM_MOVE_CHANCE) {
-    // Return a random move from the shuffled moves
-    const shuffled = [...validMoves].sort(() => Math.random() - 0.5)
-    return shuffled[0]
-  }
 
   // Use minimax to find the best move
   const { move } = minimax(board, depth, -Infinity, Infinity, true, player, difficulty)

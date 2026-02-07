@@ -1,6 +1,14 @@
 /**
- * Checkers Game Rules and Logic
- * Implements standard American Checkers (8x8 board, forced captures, flying kings)
+ * Checkers Rules Engine
+ *
+ * Pure functions implementing standard American Checkers (8x8, forced captures).
+ * Exports: createEmptyBoard, createInitialBoard, isValidPosition, isDarkSquare,
+ * getValidMovesForPiece, getAllValidMoves, applyMove, countPieces, hashBoard,
+ * checkGameOver, computeNextGameState, createInitialGameState.
+ *
+ * Key rule: if any jump is available, ALL moves must be jumps (forced capture).
+ * Kings move in all 4 diagonal directions; regulars only move forward.
+ * Draw conditions: 40-move rule (no capture/promotion) and 3-fold repetition.
  */
 
 import type {
@@ -13,20 +21,14 @@ import type {
   Piece,
 } from '@/types/checkers.types'
 import { BOARD_SIZE, DIRECTIONS, FORWARD_DIRECTIONS } from '@/types/checkers.types'
+import { DRAW_MOVE_LIMIT, REPETITION_DRAW_COUNT } from '@/lib/gameConstants'
 
-/**
- * Creates an empty 8x8 board
- */
+/** Creates an empty 8x8 board (all null). */
 export function createEmptyBoard(): Board {
   return Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null))
 }
 
-/**
- * Creates initial checkers board setup
- * Player 1 (Red) on bottom (rows 5-7)
- * Player 2 (Black) on top (rows 0-2)
- * Only dark squares are used
- */
+/** Initial board: P2/Black rows 0-2, P1/Red rows 5-7, dark squares only. */
 export function createInitialBoard(): Board {
   const board = createEmptyBoard()
 
@@ -53,23 +55,17 @@ export function createInitialBoard(): Board {
   return board
 }
 
-/**
- * Checks if a position is on the board
- */
+/** Bounds check: is (row, col) within the 8x8 grid? */
 export function isValidPosition(row: number, col: number): boolean {
   return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE
 }
 
-/**
- * Checks if a position is a dark square (where pieces can be)
- */
+/** Dark squares (row+col is odd) are the only playable squares. */
 export function isDarkSquare(row: number, col: number): boolean {
   return (row + col) % 2 === 1
 }
 
-/**
- * Gets all positions that can capture from a given position (for jump moves)
- */
+/** Recursively finds all jump sequences from a position. Handles multi-jumps. */
 function getJumpMoves(
   board: Board,
   from: Position,
@@ -152,9 +148,7 @@ function getJumpMoves(
   return moves
 }
 
-/**
- * Gets all simple (non-capture) moves from a position
- */
+/** Gets all non-capture diagonal moves from a position. */
 function getSimpleMoves(board: Board, from: Position, piece: Piece): ValidMove[] {
   const moves: ValidMove[] = []
   const directions = piece.type === 'king' ? DIRECTIONS : FORWARD_DIRECTIONS[piece.player]
@@ -177,9 +171,7 @@ function getSimpleMoves(board: Board, from: Position, piece: Piece): ValidMove[]
   return moves
 }
 
-/**
- * Gets all valid moves for a specific piece
- */
+/** Gets valid moves for one piece. Returns only jumps if jumps exist (forced capture). */
 export function getValidMovesForPiece(
   board: Board,
   position: Position
@@ -199,9 +191,7 @@ export function getValidMovesForPiece(
   return getSimpleMoves(board, position, piece)
 }
 
-/**
- * Gets all valid moves for a player
- */
+/** Gets all valid moves for a player. Returns only jumps if any jump exists. */
 export function getAllValidMoves(board: Board, player: Player): ValidMove[] {
   const allMoves: ValidMove[] = []
   const allJumps: ValidMove[] = []
@@ -226,9 +216,7 @@ export function getAllValidMoves(board: Board, player: Player): ValidMove[] {
   return allJumps.length > 0 ? allJumps : allMoves
 }
 
-/**
- * Applies a move to the board and returns the new board
- */
+/** Applies a move to the board. Returns new board (immutable). Handles captures and king promotion. */
 export function applyMove(board: Board, move: ValidMove): Board {
   const newBoard = board.map(row => [...row])
   const piece = newBoard[move.from.row][move.from.col]
@@ -255,9 +243,7 @@ export function applyMove(board: Board, move: ValidMove): Board {
   return newBoard
 }
 
-/**
- * Counts pieces for each player
- */
+/** Counts pieces and kings for both players. */
 export function countPieces(board: Board): {
   redCount: number
   blackCount: number
@@ -287,12 +273,34 @@ export function countPieces(board: Board): {
   return { redCount, blackCount, redKings, blackKings }
 }
 
-/**
- * Checks if the game is over and returns the winner
- */
+/** Deterministic board hash for 3-fold repetition detection. Format: "player:cells". */
+export function hashBoard(board: Board, currentPlayer: Player): string {
+  const cells: string[] = []
+  for (let row = 0; row < BOARD_SIZE; row++) {
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      const piece = board[row][col]
+      if (piece === null) {
+        cells.push('0')
+      } else if (piece.player === 1 && piece.type === 'regular') {
+        cells.push('1')
+      } else if (piece.player === 1 && piece.type === 'king') {
+        cells.push('2')
+      } else if (piece.player === 2 && piece.type === 'regular') {
+        cells.push('3')
+      } else {
+        cells.push('4')
+      }
+    }
+  }
+  return `${currentPlayer}:${cells.join('')}`
+}
+
+/** Checks game-over conditions: no moves, no pieces, 40-move rule, 3-fold repetition. */
 export function checkGameOver(
   board: Board,
-  currentPlayer: Player
+  currentPlayer: Player,
+  movesWithoutCaptureOrPromotion?: number,
+  positionHistory?: string[]
 ): { isOver: boolean; winner: Player | null; isDraw: boolean } {
   const validMoves = getAllValidMoves(board, currentPlayer)
   const { redCount, blackCount } = countPieces(board)
@@ -314,13 +322,93 @@ export function checkGameOver(
     return { isOver: true, winner: 1, isDraw: false }
   }
 
+  // 40-move rule: draw if 40 moves without a capture or promotion
+  if (movesWithoutCaptureOrPromotion !== undefined && movesWithoutCaptureOrPromotion >= DRAW_MOVE_LIMIT) {
+    return { isOver: true, winner: null, isDraw: true }
+  }
+
+  // 3-fold repetition: draw if the same position has occurred 3+ times
+  if (positionHistory !== undefined) {
+    const currentHash = hashBoard(board, currentPlayer)
+    const count = positionHistory.filter(h => h === currentHash).length
+    if (count >= REPETITION_DRAW_COUNT) {
+      return { isOver: true, winner: null, isDraw: true }
+    }
+  }
+
   // Game continues
   return { isOver: false, winner: null, isDraw: false }
 }
 
 /**
- * Creates initial game state
+ * Pure state transition: applies move and returns new GameState.
+ * Handles board update, piece counts, draw detection, game-over, achievement tracking.
+ * Does NOT set undoState -- callers handle that based on AI vs player context.
  */
+export function computeNextGameState(
+  prevState: GameState,
+  move: ValidMove
+): GameState {
+  const newBoard = applyMove(prevState.board, move)
+  const counts = countPieces(newBoard)
+  const nextPlayer: Player = prevState.currentPlayer === 1 ? 2 : 1
+
+  // Check if piece became king
+  const pieceAfter = newBoard[move.to.row][move.to.col]
+  const pieceBefore = prevState.board[move.from.row][move.from.col]
+  const becameKing = pieceAfter?.type === 'king' && pieceBefore?.type === 'regular'
+
+  // Draw detection counters
+  const hadCapture = move.jumps.length > 0
+  const newMovesWithoutCaptureOrPromotion =
+    hadCapture || becameKing ? 0 : prevState.movesWithoutCaptureOrPromotion + 1
+  const newPositionHistory = [
+    ...prevState.positionHistory,
+    hashBoard(newBoard, nextPlayer),
+  ]
+
+  const gameOver = checkGameOver(
+    newBoard,
+    nextPlayer,
+    newMovesWithoutCaptureOrPromotion,
+    newPositionHistory
+  )
+  const validMoves = gameOver.isOver ? [] : getAllValidMoves(newBoard, nextPlayer)
+
+  const moveRecord = {
+    from: move.from,
+    to: move.to,
+    jumps: move.jumps,
+    player: prevState.currentPlayer,
+    becameKing,
+  }
+
+  // Achievement tracking: did the current player capture an opponent's king?
+  const capturedKing = hadCapture && move.jumps.some(jump => {
+    const capturedPiece = prevState.board[jump.captured.row][jump.captured.col]
+    return capturedPiece?.type === 'king'
+  })
+
+  return {
+    ...prevState,
+    board: newBoard,
+    currentPlayer: nextPlayer,
+    status: gameOver.isOver ? (gameOver.isDraw ? 'draw' : 'won') : 'playing',
+    winner: gameOver.winner,
+    moveHistory: [...prevState.moveHistory, moveRecord],
+    lastMove: moveRecord,
+    ...counts,
+    validMoves,
+    mustJump: validMoves.some(m => m.jumps.length > 0),
+    undoState: null, // Callers set this based on AI vs player context
+    movesWithoutCaptureOrPromotion: newMovesWithoutCaptureOrPromotion,
+    positionHistory: newPositionHistory,
+    hadKingCaptured: prevState.hadKingCaptured || capturedKing,
+    wasDownBy3OrMore: prevState.wasDownBy3OrMore || (counts.blackCount - counts.redCount >= 3),
+  }
+}
+
+/** Creates a fresh game state with initial board, ready for play. */
 export function createInitialGameState(
   mode: 'pvp' | 'pvc' = 'pvc',
   difficulty: 'easy' | 'medium' | 'hard' = 'medium'
@@ -341,6 +429,10 @@ export function createInitialGameState(
     validMoves,
     mustJump: validMoves.some(m => m.jumps.length > 0),
     undoState: null,
+    movesWithoutCaptureOrPromotion: 0,
+    positionHistory: [],
+    hadKingCaptured: false,
+    wasDownBy3OrMore: false,
   }
 }
 

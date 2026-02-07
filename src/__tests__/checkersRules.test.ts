@@ -11,6 +11,7 @@ import {
   countPieces,
   checkGameOver,
   createInitialGameState,
+  hashBoard,
 } from '@/lib/checkersRules'
 import type { ValidMove } from '@/types/checkers.types'
 import { BOARD_SIZE } from '@/types/checkers.types'
@@ -767,6 +768,134 @@ describe('checkersRules', () => {
       expect(tripleJump).toBeDefined()
       expect(tripleJump!.to.row).toBe(1)
       expect(tripleJump!.to.col).toBe(6)
+    })
+  })
+
+  describe('hashBoard', () => {
+    it('should produce the same hash for the same board and same player', () => {
+      const board = createInitialBoard()
+      const hash1 = hashBoard(board, 1)
+      const hash2 = hashBoard(board, 1)
+
+      expect(hash1).toBe(hash2)
+    })
+
+    it('should produce different hashes for the same board but different player', () => {
+      const board = createInitialBoard()
+      const hash1 = hashBoard(board, 1)
+      const hash2 = hashBoard(board, 2)
+
+      expect(hash1).not.toBe(hash2)
+    })
+
+    it('should produce different hashes for different boards', () => {
+      const board1 = createInitialBoard()
+      const board2 = createEmptyBoard()
+      board2[4][3] = { player: 1, type: 'king' }
+
+      const hash1 = hashBoard(board1, 1)
+      const hash2 = hashBoard(board2, 1)
+
+      expect(hash1).not.toBe(hash2)
+    })
+  })
+
+  describe('40-move rule', () => {
+    it('should return draw when counter reaches 40', () => {
+      const board = createEmptyBoard()
+      board[5][2] = { player: 1, type: 'king' }
+      board[2][3] = { player: 2, type: 'king' }
+
+      const result = checkGameOver(board, 1, 40)
+
+      expect(result.isOver).toBe(true)
+      expect(result.winner).toBeNull()
+      expect(result.isDraw).toBe(true)
+    })
+
+    it('should return normal result when counter is less than 40', () => {
+      const board = createEmptyBoard()
+      board[5][2] = { player: 1, type: 'king' }
+      board[2][3] = { player: 2, type: 'king' }
+
+      const result = checkGameOver(board, 1, 39)
+
+      expect(result.isOver).toBe(false)
+      expect(result.winner).toBeNull()
+      expect(result.isDraw).toBe(false)
+    })
+
+    it('should return draw when counter exceeds 40', () => {
+      const board = createEmptyBoard()
+      board[5][2] = { player: 1, type: 'king' }
+      board[2][3] = { player: 2, type: 'king' }
+
+      const result = checkGameOver(board, 1, 50)
+
+      expect(result.isOver).toBe(true)
+      expect(result.winner).toBeNull()
+      expect(result.isDraw).toBe(true)
+    })
+  })
+
+  describe('3-fold repetition', () => {
+    it('should return draw when position appears 3 times in history', () => {
+      const board = createEmptyBoard()
+      board[5][2] = { player: 1, type: 'king' }
+      board[2][3] = { player: 2, type: 'king' }
+
+      const currentHash = hashBoard(board, 1)
+      const positionHistory = [currentHash, 'other-position', currentHash, 'another-position', currentHash]
+
+      const result = checkGameOver(board, 1, 0, positionHistory)
+
+      expect(result.isOver).toBe(true)
+      expect(result.winner).toBeNull()
+      expect(result.isDraw).toBe(true)
+    })
+
+    it('should return normal result with fewer than 3 repetitions', () => {
+      const board = createEmptyBoard()
+      board[5][2] = { player: 1, type: 'king' }
+      board[2][3] = { player: 2, type: 'king' }
+
+      const currentHash = hashBoard(board, 1)
+      const positionHistory = [currentHash, 'other-position', currentHash]
+
+      const result = checkGameOver(board, 1, 0, positionHistory)
+
+      expect(result.isOver).toBe(false)
+      expect(result.winner).toBeNull()
+      expect(result.isDraw).toBe(false)
+    })
+
+    it('should prioritize no-moves loss over draw by repetition', () => {
+      const board = createEmptyBoard()
+      // Player 1 piece at top row, cannot move forward (regular piece)
+      board[0][1] = { player: 1, type: 'regular' }
+      board[7][2] = { player: 2, type: 'regular' }
+
+      const currentHash = hashBoard(board, 1)
+      const positionHistory = [currentHash, currentHash, currentHash]
+
+      const result = checkGameOver(board, 1, 50, positionHistory)
+
+      // No-moves loss takes priority over draw rules
+      expect(result.isOver).toBe(true)
+      expect(result.winner).toBe(2)
+      expect(result.isDraw).toBe(false)
+    })
+  })
+
+  describe('createInitialGameState draw fields', () => {
+    it('should initialize movesWithoutCaptureOrPromotion to 0', () => {
+      const state = createInitialGameState()
+      expect(state.movesWithoutCaptureOrPromotion).toBe(0)
+    })
+
+    it('should initialize positionHistory to empty array', () => {
+      const state = createInitialGameState()
+      expect(state.positionHistory).toEqual([])
     })
   })
 })

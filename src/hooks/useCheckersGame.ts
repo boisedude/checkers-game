@@ -1,18 +1,26 @@
 /**
  * Checkers Game Hook
- * Main game state management with piece movement and capture animations
+ *
+ * Primary state management hook. Orchestrates game lifecycle, player/AI moves,
+ * animation sequencing, undo, and save/resume.
+ *
+ * Exports: useCheckersGame(initialDifficulty) -> game state + action callbacks.
+ *
+ * Animation flow: handleSquareClick/AI triggers executeAnimatedMove (async with
+ * AbortController cancellation), then applies state via computeNextGameState.
+ * Multi-jump animations update intermediateBoard for accurate visual state.
+ *
+ * Undo in PvC mode undoes both player move + AI response (2 moves).
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { GameState, Difficulty, Position, ValidMove, UndoState } from '@/types/checkers.types'
+import type { GameState, Difficulty, Position, ValidMove, UndoState, GameMode } from '@/types/checkers.types'
 import {
   createInitialGameState,
-  getAllValidMoves,
   getValidMovesForPiece,
-  applyMove,
-  checkGameOver,
-  countPieces,
+  computeNextGameState,
 } from '@/lib/checkersRules'
+import { saveGame, loadSavedGame, clearSavedGame, hasSavedGame } from '@/lib/gameSerialization'
 import { getAIMove } from '@/lib/aiStrategies'
 import {
   AI_MOVE_DELAY,
@@ -20,6 +28,7 @@ import {
   JUMP_ANIMATION_DURATION,
   CAPTURE_ANIMATION_DURATION,
   PROMOTION_ANIMATION_DURATION,
+  POST_ANIMATION_SETTLE_DELAY,
 } from '@/lib/animationConstants'
 
 interface AnimatingPiece {
@@ -28,9 +37,33 @@ interface AnimatingPiece {
   isJump: boolean
 }
 
+/** Promise-based delay that rejects on AbortSignal abort. Used for animation sequencing. */
+function cancellableDelay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'))
+      return
+    }
+    const timer = setTimeout(resolve, ms)
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+/** Creates a game state with status='setup' for the welcome screen. */
+function createSetupState(mode: GameMode = 'pvc', difficulty: Difficulty = 'medium'): GameState {
+  return {
+    ...createInitialGameState(mode, difficulty),
+    status: 'setup',
+  }
+}
+
 export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
   const [gameState, setGameState] = useState<GameState>(() =>
-    createInitialGameState('pvc', initialDifficulty)
+    createSetupState('pvc', initialDifficulty)
   )
   const [selectedPiece, setSelectedPiece] = useState<Position | null>(null)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -40,18 +73,53 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
   const [animatingPiece, setAnimatingPiece] = useState<AnimatingPiece | null>(null)
   const [capturedPiece, setCapturedPiece] = useState<Position | null>(null)
   const [promotedPiece, setPromotedPiece] = useState<Position | null>(null)
+  // Intermediate board for rendering during multi-jump animations
+  const [intermediateBoard, setIntermediateBoard] = useState<GameState['board'] | null>(null)
 
   const aiMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const aiMoveScheduledRef = useRef(false)
+  const animationAbortRef = useRef<AbortController | null>(null)
 
-  // Cleanup AI move timeout on unmount
+  /**
+   * Cancel all in-flight animations and reset animation state
+   */
+  const cancelAnimations = useCallback(() => {
+    if (animationAbortRef.current) {
+      animationAbortRef.current.abort()
+      animationAbortRef.current = null
+    }
+    if (aiMoveTimeoutRef.current) {
+      clearTimeout(aiMoveTimeoutRef.current)
+      aiMoveTimeoutRef.current = null
+    }
+    aiMoveScheduledRef.current = false
+    setIsAnimating(false)
+    setAnimatingPiece(null)
+    setCapturedPiece(null)
+    setPromotedPiece(null)
+    setIntermediateBoard(null)
+  }, [])
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (animationAbortRef.current) {
+        animationAbortRef.current.abort()
+      }
       if (aiMoveTimeoutRef.current) {
         clearTimeout(aiMoveTimeoutRef.current)
       }
     }
   }, [])
+
+  // Auto-save game state when playing
+  useEffect(() => {
+    if (gameState.status === 'playing') {
+      saveGame(gameState)
+    } else if (gameState.status === 'won' || gameState.status === 'draw') {
+      clearSavedGame()
+    }
+  }, [gameState])
 
   /**
    * Execute a move with full animation sequence
@@ -60,15 +128,16 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     async (
       move: ValidMove,
       player: 1 | 2,
-      prevBoard: GameState['board']
+      prevBoard: GameState['board'],
+      signal: AbortSignal
     ): Promise<void> => {
       const isJump = move.jumps.length > 0
       const animationDuration = isJump ? JUMP_ANIMATION_DURATION : MOVE_ANIMATION_DURATION
 
-      // For multi-jump moves, we animate each jump sequentially
+      // For multi-jump moves, animate each jump sequentially with incremental board updates
       if (move.jumps.length > 1) {
-        // Multi-jump chain animation
         let currentFrom = move.from
+        let currentBoard = prevBoard.map(row => [...row])
 
         for (let i = 0; i < move.jumps.length; i++) {
           const jump = move.jumps[i]
@@ -84,18 +153,29 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
           setCapturedPiece(jump.captured)
 
           // Wait for jump animation
-          await new Promise(resolve => setTimeout(resolve, JUMP_ANIMATION_DURATION))
+          await cancellableDelay(JUMP_ANIMATION_DURATION, signal)
+
+          // Update board incrementally: move piece, remove captured piece
+          const nextBoard = currentBoard.map(row => [...row])
+          nextBoard[jump.to.row][jump.to.col] = nextBoard[currentFrom.row][currentFrom.col]
+          nextBoard[currentFrom.row][currentFrom.col] = null
+          nextBoard[jump.captured.row][jump.captured.col] = null
+          currentBoard = nextBoard
+
+          // Show intermediate board state so the piece is visually in the right position
+          setIntermediateBoard(currentBoard)
 
           // Clear capture animation
           setCapturedPiece(null)
 
           // Wait a bit for capture to fade
-          await new Promise(resolve => setTimeout(resolve, CAPTURE_ANIMATION_DURATION / 2))
+          await cancellableDelay(CAPTURE_ANIMATION_DURATION / 2, signal)
 
           currentFrom = jump.to
         }
 
         setAnimatingPiece(null)
+        setIntermediateBoard(null)
       } else {
         // Single move or single jump
         setAnimatingPiece({
@@ -109,11 +189,11 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
         }
 
         // Wait for move animation
-        await new Promise(resolve => setTimeout(resolve, animationDuration))
+        await cancellableDelay(animationDuration, signal)
 
         if (isJump) {
           // Wait for capture animation
-          await new Promise(resolve => setTimeout(resolve, CAPTURE_ANIMATION_DURATION / 2))
+          await cancellableDelay(CAPTURE_ANIMATION_DURATION / 2, signal)
           setCapturedPiece(null)
         }
 
@@ -128,7 +208,7 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
 
       if (willBeKing) {
         setPromotedPiece(move.to)
-        await new Promise(resolve => setTimeout(resolve, PROMOTION_ANIMATION_DURATION))
+        await cancellableDelay(PROMOTION_ANIMATION_DURATION, signal)
         setPromotedPiece(null)
       }
     },
@@ -145,6 +225,8 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
       !aiMoveScheduledRef.current
     ) {
       aiMoveScheduledRef.current = true
+      const abortController = new AbortController()
+      animationAbortRef.current = abortController
 
       aiMoveTimeoutRef.current = setTimeout(async () => {
         try {
@@ -154,48 +236,31 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
             setIsAnimating(true)
 
             // Run animation sequence
-            await executeAnimatedMove(aiMove, 2, gameState.board)
+            await executeAnimatedMove(aiMove, 2, gameState.board, abortController.signal)
+
+            // Brief settle delay so player sees the final position
+            await cancellableDelay(POST_ANIMATION_SETTLE_DELAY, abortController.signal)
 
             // Apply move to state
             setGameState(prevState => {
               try {
-                const newBoard = applyMove(prevState.board, aiMove)
-                const counts = countPieces(newBoard)
-                const nextPlayer = prevState.currentPlayer === 1 ? 2 : 1
-                const gameOver = checkGameOver(newBoard, nextPlayer)
-                const validMoves = gameOver.isOver ? [] : getAllValidMoves(newBoard, nextPlayer)
-
-                const move = {
-                  from: aiMove.from,
-                  to: aiMove.to,
-                  jumps: aiMove.jumps,
-                  player: prevState.currentPlayer,
-                  becameKing: false,
-                }
-
+                const nextState = computeNextGameState(prevState, aiMove)
                 return {
-                  ...prevState,
-                  board: newBoard,
-                  currentPlayer: nextPlayer,
-                  status: gameOver.isOver ? (gameOver.isDraw ? 'draw' : 'won') : 'playing',
-                  winner: gameOver.winner,
-                  moveHistory: [...prevState.moveHistory, move],
-                  lastMove: move,
-                  ...counts,
-                  validMoves,
-                  mustJump: validMoves.some(m => m.jumps.length > 0),
-                  // Clear undo state on game over, otherwise preserve it
-                  // so player can undo both their move and AI's response
-                  undoState: gameOver.isOver ? null : prevState.undoState,
+                  ...nextState,
+                  // Preserve undo state so player can undo their move + AI response; clear on game over
+                  undoState: nextState.status !== 'playing' ? null : prevState.undoState,
                 }
-              } catch {
+              } catch (e) {
+                console.warn('checkers: failed to apply AI move', e)
                 return prevState
               }
             })
 
             setIsAnimating(false)
           }
-        } catch {
+        } catch (e) {
+          // Ignore abort errors - they're expected when cancelling animations
+          if (e instanceof DOMException && e.name === 'AbortError') return
           setIsAnimating(false)
         } finally {
           aiMoveScheduledRef.current = false
@@ -224,14 +289,15 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
    */
   const handleSquareClick = useCallback(
     async (row: number, col: number) => {
-      if (isAnimating || gameState.status !== 'playing' || gameState.currentPlayer !== 1) {
-        return
-      }
+      if (isAnimating || gameState.status !== 'playing') return
+
+      // In PvC mode, only allow player 1 to click
+      if (gameState.mode === 'pvc' && gameState.currentPlayer !== 1) return
 
       const piece = gameState.board[row][col]
 
-      // If clicking on own piece, select it
-      if (piece && piece.player === 1) {
+      // If clicking on current player's piece, select it
+      if (piece && piece.player === gameState.currentPlayer) {
         const validMoves = getValidMovesForPiece(gameState.board, { row, col })
 
         // Only allow selecting this piece if it has valid moves
@@ -256,70 +322,49 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
 
         if (validMove) {
           // Execute the move with animation
+          const abortController = new AbortController()
+          animationAbortRef.current = abortController
           setIsAnimating(true)
-          const savedSelectedPiece = { ...selectedPiece }
           setSelectedPiece(null)
           setHighlightedSquares([])
 
-          // Run animation sequence
-          await executeAnimatedMove(validMove, 1, gameState.board)
+          try {
+            // Run animation sequence
+            await executeAnimatedMove(validMove, gameState.currentPlayer, gameState.board, abortController.signal)
 
-          // Apply move to state
-          setGameState(prevState => {
-            try {
-              const newBoard = applyMove(prevState.board, validMove)
-              const counts = countPieces(newBoard)
-              const nextPlayer = prevState.currentPlayer === 1 ? 2 : 1
-              const gameOver = checkGameOver(newBoard, nextPlayer)
-              const validMoves = gameOver.isOver ? [] : getAllValidMoves(newBoard, nextPlayer)
+            // Apply move to state
+            setGameState(prevState => {
+              try {
+                const nextState = computeNextGameState(prevState, validMove)
 
-              // Check if piece became king
-              const pieceAfterMove = newBoard[validMove.to.row][validMove.to.col]
-              const pieceBefore = prevState.board[savedSelectedPiece.row][savedSelectedPiece.col]
-              const becameKing =
-                pieceAfterMove?.type === 'king' && pieceBefore?.type === 'regular'
+                // Save undo state so player can undo; clear on game over
+                const undoState: UndoState = {
+                  board: prevState.board,
+                  currentPlayer: prevState.currentPlayer,
+                  lastMove: prevState.lastMove,
+                  redCount: prevState.redCount,
+                  blackCount: prevState.blackCount,
+                  redKings: prevState.redKings,
+                  blackKings: prevState.blackKings,
+                  validMoves: prevState.validMoves,
+                  mustJump: prevState.mustJump,
+                }
 
-              const move = {
-                from: validMove.from,
-                to: validMove.to,
-                jumps: validMove.jumps,
-                player: prevState.currentPlayer,
-                becameKing,
+                return {
+                  ...nextState,
+                  undoState: nextState.status !== 'playing' ? null : undoState,
+                }
+              } catch (e) {
+                console.warn('checkers: failed to apply player move', e)
+                return prevState
               }
+            })
 
-              // Save undo state before applying the move (player 1's move)
-              const undoState: UndoState = {
-                board: prevState.board,
-                currentPlayer: prevState.currentPlayer,
-                lastMove: prevState.lastMove,
-                redCount: prevState.redCount,
-                blackCount: prevState.blackCount,
-                redKings: prevState.redKings,
-                blackKings: prevState.blackKings,
-                validMoves: prevState.validMoves,
-                mustJump: prevState.mustJump,
-              }
-
-              return {
-                ...prevState,
-                board: newBoard,
-                currentPlayer: nextPlayer,
-                status: gameOver.isOver ? (gameOver.isDraw ? 'draw' : 'won') : 'playing',
-                winner: gameOver.winner,
-                moveHistory: [...prevState.moveHistory, move],
-                lastMove: move,
-                ...counts,
-                validMoves,
-                mustJump: validMoves.some(m => m.jumps.length > 0),
-                // Only save undo state if game is not over (can't undo after game ends)
-                undoState: gameOver.isOver ? null : undoState,
-              }
-            } catch {
-              return prevState
-            }
-          })
-
-          setIsAnimating(false)
+            setIsAnimating(false)
+          } catch (e) {
+            if (e instanceof DOMException && e.name === 'AbortError') return
+            setIsAnimating(false)
+          }
         } else {
           // Clicked on invalid square, deselect
           setSelectedPiece(null)
@@ -331,6 +376,7 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
       gameState.board,
       gameState.status,
       gameState.currentPlayer,
+      gameState.mode,
       gameState.mustJump,
       selectedPiece,
       isAnimating,
@@ -339,17 +385,47 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
   )
 
   /**
-   * Starts a new game
+   * Starts a new game (from gameplay, resets to playing)
    */
   const startNewGame = useCallback(() => {
-    setGameState(createInitialGameState('pvc', gameState.difficulty))
+    cancelAnimations()
+    setGameState(createInitialGameState(gameState.mode, gameState.difficulty))
     setSelectedPiece(null)
     setHighlightedSquares([])
-    setIsAnimating(false)
-    setAnimatingPiece(null)
-    setCapturedPiece(null)
-    setPromotedPiece(null)
-  }, [gameState.difficulty])
+  }, [gameState.difficulty, gameState.mode, cancelAnimations])
+
+  /**
+   * Start game from the welcome/setup screen
+   */
+  const startGame = useCallback((mode: GameMode, difficulty: Difficulty) => {
+    cancelAnimations()
+    setGameState(createInitialGameState(mode, difficulty))
+    setSelectedPiece(null)
+    setHighlightedSquares([])
+  }, [cancelAnimations])
+
+  /**
+   * Returns to the setup/welcome screen
+   */
+  const returnToSetup = useCallback(() => {
+    cancelAnimations()
+    setGameState(prevState => createSetupState(prevState.mode, prevState.difficulty))
+    setSelectedPiece(null)
+    setHighlightedSquares([])
+  }, [cancelAnimations])
+
+  /**
+   * Resume a saved game from localStorage
+   */
+  const resumeGame = useCallback(() => {
+    const saved = loadSavedGame()
+    if (saved && saved.status === 'playing') {
+      cancelAnimations()
+      setGameState(saved)
+      setSelectedPiece(null)
+      setHighlightedSquares([])
+    }
+  }, [cancelAnimations])
 
   /**
    * Changes difficulty level
@@ -362,6 +438,16 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
   }, [])
 
   /**
+   * Changes game mode
+   */
+  const changeMode = useCallback((newMode: GameMode) => {
+    setGameState(prevState => ({
+      ...prevState,
+      mode: newMode,
+    }))
+  }, [])
+
+  /**
    * Undo the last move(s)
    * In VS AI mode: Undoes both player's move and AI's response
    * In PvP mode: Undoes the last single move
@@ -369,6 +455,8 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
   const undoMove = useCallback(() => {
     // Don't allow undo during animations
     if (isAnimating) return
+
+    cancelAnimations()
 
     setGameState(prevState => {
       // Check if undo is available
@@ -409,7 +497,7 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     // Clear any selection state
     setSelectedPiece(null)
     setHighlightedSquares([])
-  }, [isAnimating])
+  }, [isAnimating, cancelAnimations])
 
   /**
    * Checks if a square is highlighted (valid move destination)
@@ -431,6 +519,14 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     [selectedPiece]
   )
 
+  // Determine if undo is available
+  const canUndo =
+    gameState.undoState !== null &&
+    gameState.status === 'playing' &&
+    !isAnimating &&
+    // In PvC mode, only allow undo on player's turn; in PvP, allow on either turn
+    (gameState.mode === 'pvp' || gameState.currentPlayer === 1)
+
   return {
     gameState,
     selectedPiece,
@@ -439,11 +535,18 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     animatingPiece,
     capturedPiece,
     promotedPiece,
+    intermediateBoard,
     handleSquareClick,
     startNewGame,
+    startGame,
+    returnToSetup,
+    resumeGame,
     changeDifficulty,
+    changeMode,
     undoMove,
     isHighlighted,
     isPieceSelected,
+    canUndo,
+    hasSavedGame,
   }
 }

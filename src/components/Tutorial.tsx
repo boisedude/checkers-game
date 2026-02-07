@@ -1,6 +1,9 @@
 /**
  * Tutorial Component
- * Step-by-step walkthrough for first-time checkers players
+ *
+ * 9-step guided walkthrough with inline SVG diagrams and Piece component demos.
+ * Steps cover: basics, goals, movement, captures, multi-jumps, kings, difficulty.
+ * onComplete marks tutorial as done in localStorage to prevent re-showing.
  */
 
 import { useState } from 'react'

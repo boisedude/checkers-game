@@ -1,6 +1,9 @@
 /**
  * Victory Dialog Component
- * Shows game result with Checkers-themed personality messages
+ *
+ * Displays game result (win/loss/draw) with character-specific messages in PvC
+ * and color-based messages in PvP. Shows character images, piece counts, and margin.
+ * Random message selected on open via useEffect to avoid hydration mismatch.
  */
 
 import React, { useState, useEffect } from 'react'
@@ -13,7 +16,7 @@ import {
   DialogTitle,
 } from './ui/dialog'
 import { Button } from './ui/button'
-import type { Player } from '@/types/checkers.types'
+import type { Player, GameMode } from '@/types/checkers.types'
 import type { Character } from '@shared/characters'
 
 interface VictoryDialogProps {
@@ -24,6 +27,29 @@ interface VictoryDialogProps {
   onPlayAgain: () => void
   onClose: () => void
   character: Character
+  gameMode?: GameMode
+}
+
+const PVP_DRAW_MESSAGES = [
+  "It's a perfect tie! Both players are equally matched!",
+  'A draw in Checkers? Impressive strategic balance!',
+  'The board is cleared: Neither side prevails. Rematch?',
+  'A perfect stalemate! Want to break the tie?',
+]
+
+const PVP_WIN_MESSAGES: Record<string, string[]> = {
+  red: [
+    'Red dominates the board!',
+    'A masterful victory for Red!',
+    'Red captures the crown!',
+    'Red outplayed Black beautifully!',
+  ],
+  black: [
+    'Black dominates the board!',
+    'A masterful victory for Black!',
+    'Black captures the crown!',
+    'Black outplayed Red beautifully!',
+  ],
 }
 
 function VictoryDialogComponent({
@@ -34,47 +60,70 @@ function VictoryDialogComponent({
   onPlayAgain,
   onClose,
   character,
+  gameMode = 'pvc',
 }: VictoryDialogProps) {
   const isDraw = winner === null
   const margin = Math.abs(blackCount - redCount)
   const [victoryMessage, setVictoryMessage] = useState('')
+  const isPvP = gameMode === 'pvp'
 
-  // Select random message when dialog opens (in effect to comply with React 19 purity rules)
-  // Math.random() must be called in effect, not during render, to maintain purity
-  // setState is scheduled asynchronously via setTimeout to avoid cascading renders
+  // Fallback to character avatar if themed image fails to load
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    e.currentTarget.src = character.avatar
+  }
+
+  // Select random message when dialog opens
   useEffect(() => {
     if (open) {
       let message: string
-      if (isDraw) {
-        const drawMessages = [
-          `It's a perfect tie! Both you and ${character.name} are equally matched!`,
-          `A draw in Checkers? ${character.name} is impressed with your strategic balance!`,
-          'The board is cleared: Neither side prevails. Rematch?',
-          `Tied at the buzzer! ${character.name} wants a rematch to settle this!`,
-          'A perfect stalemate! Want to break the tie?',
-        ]
-        message = drawMessages[Math.floor(Math.random() * drawMessages.length)]
-      } else if (winner === 1) {
-        // Player won - use character's playerWins catchphrases
-        const messages = character.catchphrases.playerWins
-        message = messages[Math.floor(Math.random() * messages.length)]
+      if (isPvP) {
+        if (isDraw) {
+          message = PVP_DRAW_MESSAGES[Math.floor(Math.random() * PVP_DRAW_MESSAGES.length)]
+        } else {
+          const colorKey = winner === 1 ? 'red' : 'black'
+          const msgs = PVP_WIN_MESSAGES[colorKey]
+          message = msgs[Math.floor(Math.random() * msgs.length)]
+        }
       } else {
-        // Character won - use character's characterWins catchphrases
-        const messages = character.catchphrases.characterWins
-        message = messages[Math.floor(Math.random() * messages.length)]
+        if (isDraw) {
+          const drawMessages = [
+            `It's a perfect tie! Both you and ${character.name} are equally matched!`,
+            `A draw in Checkers? ${character.name} is impressed with your strategic balance!`,
+            'The board is cleared: Neither side prevails. Rematch?',
+            `Tied at the buzzer! ${character.name} wants a rematch to settle this!`,
+            'A perfect stalemate! Want to break the tie?',
+          ]
+          message = drawMessages[Math.floor(Math.random() * drawMessages.length)]
+        } else if (winner === 1) {
+          const messages = character.catchphrases.playerWins
+          message = messages[Math.floor(Math.random() * messages.length)]
+        } else {
+          const messages = character.catchphrases.characterWins
+          message = messages[Math.floor(Math.random() * messages.length)]
+        }
       }
-      // Schedule state update asynchronously to avoid cascading renders
       const timer = setTimeout(() => setVictoryMessage(message), 0)
       return () => clearTimeout(timer)
     }
-  }, [open, isDraw, winner, character])
+  }, [open, isDraw, winner, character, isPvP])
+
+  // Title text
+  const titleText = isDraw
+    ? '🤝 Draw!'
+    : isPvP
+      ? winner === 1
+        ? 'Red Wins!'
+        : 'Black Wins!'
+      : winner === 1
+        ? `You Beat ${character.name}!`
+        : `${character.name} Wins!`
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl">
-            {isDraw ? '🤝 Draw!' : winner === 1 ? `You Beat ${character.name}!` : `${character.name} Wins!`}
+            {titleText}
           </DialogTitle>
           <DialogDescription className="text-center text-base">
             {victoryMessage}
@@ -82,42 +131,35 @@ function VictoryDialogComponent({
         </DialogHeader>
 
         <div className="flex flex-col gap-4 py-4">
-          {/* Character Avatar */}
-          <div className="flex items-center justify-center py-2">
-            {winner === 1 ? (
-              <img
-                src={character.loseImage}
-                alt={`${character.name} loses`}
-                className="max-h-40 w-auto object-contain"
-                onError={(e) => {
-                  // Fallback to avatar if specific image not found
-                  e.currentTarget.src = character.avatar
-                }}
-              />
-            ) : winner === 2 ? (
-              <img
-                src={character.winImage}
-                alt={`${character.name} wins`}
-                className="max-h-40 w-auto object-contain"
-                onError={(e) => {
-                  // Fallback to avatar if specific image not found
-                  e.currentTarget.src = character.avatar
-                }}
-              />
-            ) : (
-              <img
-                src={character.playAgainImage}
-                alt={`${character.name}`}
-                className="max-h-40 w-auto object-contain"
-                onError={(e) => {
-                  // Fallback to avatar if specific image not found
-                  e.currentTarget.src = character.avatar
-                }}
-              />
-            )}
-          </div>
+          {/* Character Avatar (PvC only) */}
+          {!isPvP && (
+            <div className="flex items-center justify-center py-2">
+              {winner === 1 ? (
+                <img
+                  src={character.loseImage}
+                  alt={`${character.name} loses`}
+                  className="max-h-40 w-auto object-contain"
+                  onError={handleImageError}
+                />
+              ) : winner === 2 ? (
+                <img
+                  src={character.winImage}
+                  alt={`${character.name} wins`}
+                  className="max-h-40 w-auto object-contain"
+                  onError={handleImageError}
+                />
+              ) : (
+                <img
+                  src={character.playAgainImage}
+                  alt={`${character.name}`}
+                  className="max-h-40 w-auto object-contain"
+                  onError={handleImageError}
+                />
+              )}
+            </div>
+          )}
 
-          {/* Visual Result Representation - Checkers themed */}
+          {/* Visual Result Representation */}
           <div className="flex items-center justify-center gap-6 py-4">
             {winner === 1 ? (
               <>
@@ -132,7 +174,7 @@ function VictoryDialogComponent({
               </>
             ) : winner === 2 ? (
               <>
-                <div className="text-5xl opacity-50">😔</div>
+                {!isPvP && <div className="text-5xl opacity-50">😔</div>}
                 <div className="relative">
                   <div className="h-24 w-24 rounded-full bg-gradient-to-br from-gray-800 to-black shadow-2xl ring-4 ring-yellow-400 animate-pulse" />
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -140,6 +182,7 @@ function VictoryDialogComponent({
                   </div>
                   <div className="absolute -right-2 -top-2 text-4xl">👑</div>
                 </div>
+                {isPvP && <div className="text-5xl">🏆</div>}
               </>
             ) : (
               <>
@@ -170,7 +213,7 @@ function VictoryDialogComponent({
                     <div className="h-3 w-3 rounded-full bg-red-900 opacity-50" />
                   </div>
                 </div>
-                <span className="font-medium">You (Red)</span>
+                <span className="font-medium">{isPvP ? 'Red' : 'You (Red)'}</span>
               </div>
               <span className={`text-xl font-bold ${winner === 1 ? 'text-green-600' : ''}`}>
                 {redCount}
@@ -184,7 +227,7 @@ function VictoryDialogComponent({
                     <div className="h-3 w-3 rounded-full bg-gray-900 opacity-50" />
                   </div>
                 </div>
-                <span className="font-medium">{character.name} (Black)</span>
+                <span className="font-medium">{isPvP ? 'Black' : `${character.name} (Black)`}</span>
               </div>
               <span className={`text-xl font-bold ${winner === 2 ? 'text-green-600' : ''}`}>
                 {blackCount}

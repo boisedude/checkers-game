@@ -1,6 +1,8 @@
 /**
  * Game Controls Component
- * Controls for difficulty selection, new game, undo, leaderboard, etc.
+ *
+ * Two-row control bar. Top: difficulty selector (PvC only), New Game, Undo, Stats, Help.
+ * Bottom: Achievements, History, Change Mode. Undo button only visible during gameplay.
  */
 
 import React from 'react'
@@ -15,6 +17,9 @@ interface GameControlsProps {
   onNewGame: () => void
   onShowLeaderboard: () => void
   onShowHelp?: () => void
+  onShowAchievements?: () => void
+  onShowHistory?: () => void
+  onReturnToSetup?: () => void
   onUndo?: () => void
   canUndo?: boolean
   disabled?: boolean
@@ -28,6 +33,9 @@ export const GameControls = React.memo(function GameControls({
   onNewGame,
   onShowLeaderboard,
   onShowHelp,
+  onShowAchievements,
+  onShowHistory,
+  onReturnToSetup,
   onUndo,
   canUndo = false,
   disabled = false,
@@ -104,6 +112,45 @@ export const GameControls = React.memo(function GameControls({
             </Button>
           )}
         </div>
+      </div>
+
+      {/* Bottom Row: Achievements, History, Return to Setup */}
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {onShowAchievements && (
+          <Button
+            onClick={onShowAchievements}
+            disabled={disabled}
+            variant="ghost"
+            size="sm"
+            className="text-xs sm:text-sm"
+          >
+            Achievements
+          </Button>
+        )}
+
+        {onShowHistory && (
+          <Button
+            onClick={onShowHistory}
+            disabled={disabled}
+            variant="ghost"
+            size="sm"
+            className="text-xs sm:text-sm"
+          >
+            History
+          </Button>
+        )}
+
+        {onReturnToSetup && (
+          <Button
+            onClick={onReturnToSetup}
+            disabled={disabled}
+            variant="ghost"
+            size="sm"
+            className="text-xs sm:text-sm"
+          >
+            Change Mode
+          </Button>
+        )}
       </div>
 
     </div>

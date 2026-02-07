@@ -27,7 +27,9 @@
     "lint:fix": "node node_modules/eslint/bin/eslint.js . --fix",
     "format": "node node_modules/prettier/bin/prettier.cjs --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "node node_modules/prettier/bin/prettier.cjs --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "type-check": "node node_modules/typescript/lib/tsc.js --noEmit"
+    "type-check": "node node_modules/typescript/lib/tsc.js --noEmit",
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -45,6 +47,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",

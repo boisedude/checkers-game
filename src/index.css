@@ -30,14 +30,13 @@
   /* Custom animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
-  --animate-disc-flip: disc-flip 0.6s ease-in-out;
   --animate-gentle-glow: gentle-glow 2s ease-in-out infinite;
   --animate-pulse-ring: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-piece-slide: piece-slide 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --animate-piece-jump: piece-jump 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   --animate-piece-capture: piece-capture 0.4s ease-out forwards;
   --animate-king-promotion: king-promotion 0.8s ease-out;
-  --animate-crown-appear: crown-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --animate-crown-appear: crown-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
   --animate-selected-glow: selected-glow 1.5s ease-in-out infinite;
   --animate-valid-move-glow: valid-move-glow 1.2s ease-in-out infinite;
 
@@ -56,18 +55,6 @@
     }
     to {
       height: 0;
-    }
-  }
-
-  @keyframes disc-flip {
-    0% {
-      transform: rotateY(0deg) scale(1);
-    }
-    50% {
-      transform: rotateY(90deg) scale(1.1);
-    }
-    100% {
-      transform: rotateY(180deg) scale(1);
     }
   }
 
@@ -275,57 +262,7 @@
   }
 }
 
-/* Disc place animation - subtle drop effect */
-@keyframes disc-place {
-  0% {
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Valid move pulse animation */
-@keyframes valid-move-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.6;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 0.8;
-  }
-}
-
-/* Hover lift effect */
-@keyframes hover-lift {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-2px);
-  }
-}
-
 @layer utilities {
-  .animate-disc-place {
-    animation: disc-place 0.3s ease-out;
-  }
-
-  .animate-valid-move-pulse {
-    animation: valid-move-pulse 2s ease-in-out infinite;
-  }
-
-  .animate-hover-lift {
-    animation: hover-lift 0.2s ease-out forwards;
-  }
-
   /* Piece movement animations */
   .animate-piece-slide {
     animation: piece-slide 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -344,7 +281,7 @@
   }
 
   .animate-crown-appear {
-    animation: crown-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: crown-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
   }
 
   .animate-selected-glow {
@@ -355,37 +292,6 @@
     animation: valid-move-glow 1.2s ease-in-out infinite;
   }
 
-  /* Backface visibility for flip animation */
-  .backface-hidden {
-    backface-visibility: hidden;
-  }
-
-  .preserve-3d {
-    transform-style: preserve-3d;
-  }
-
-  /* 3D rotation utilities for disc flip */
-  .rotate-y-180 {
-    transform: rotateY(180deg);
-  }
-
-  /* Custom scrollbar */
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .scrollbar-thumb-rounded::-webkit-scrollbar-thumb {
-    border-radius: 9999px;
-  }
-
-  .scrollbar-thumb-muted-foreground\/20::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted-foreground) / 0.2);
-  }
-
-  .scrollbar-track-transparent::-webkit-scrollbar-track {
-    background-color: transparent;
-  }
 }
 
 /* ================================

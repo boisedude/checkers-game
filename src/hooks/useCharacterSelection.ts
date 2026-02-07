@@ -1,6 +1,8 @@
 /**
  * Character Selection Hook
- * Maps difficulty levels to characters and manages character state
+ *
+ * Exports: useCharacterSelection(initialDifficulty) -> { character, difficulty, changeCharacter }
+ * Maps difficulty to shared character system: easy=Bella, medium=Coop, hard=Bentley.
  */
 
 import { useState, useCallback } from 'react'

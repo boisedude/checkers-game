@@ -1,6 +1,8 @@
 /**
  * Leaderboard Dialog Component
- * Displays player statistics vs Coop with Checkers-specific metrics
+ *
+ * Displays player stats: record, win rate, streaks, best margins, captures.
+ * Player name is editable inline. Reset stats requires confirmation.
  */
 
 import React, { useState } from 'react'
@@ -52,7 +54,7 @@ export const LeaderboardDialog = React.memo(function LeaderboardDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>📊 Your Record vs Coop</span>
+            <span>📊 Game Stats</span>
           </DialogTitle>
           <DialogDescription>
             {isEditing ? (
@@ -84,8 +86,8 @@ export const LeaderboardDialog = React.memo(function LeaderboardDialog({
           <div className="space-y-2">
             <h3 className="mb-2 text-sm font-semibold">Game Record</h3>
             <StatRow label="Total Games" value={stats.totalGames} />
-            <StatRow label="Wins vs Coop" value={stats.wins} highlight="green" />
-            <StatRow label="Losses to Coop" value={stats.losses} highlight="red" />
+            <StatRow label="Wins" value={stats.wins} highlight="green" />
+            <StatRow label="Losses" value={stats.losses} highlight="red" />
             <StatRow label="Draws" value={stats.draws} />
             <StatRow label="Win Rate" value={`${winRate}%`} />
           </div>
@@ -109,10 +111,10 @@ export const LeaderboardDialog = React.memo(function LeaderboardDialog({
             <div className="space-y-2">
               <StatRow
                 label="Largest Margin"
-                value={stats.totalCaptures > 0 ? `${stats.totalCaptures} pieces` : 'N/A'}
+                value={stats.largestWinMargin > 0 ? `${stats.largestWinMargin} pieces` : 'N/A'}
               />
               <StatRow label="Perfect Games" value={stats.perfectGames} />
-              <StatRow label="Total Pieces Captured" value={stats.multiJumps.toLocaleString()} />
+              <StatRow label="Total Pieces Captured" value={stats.totalCaptures.toLocaleString()} />
             </div>
           </div>
         </div>

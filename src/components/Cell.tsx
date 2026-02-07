@@ -1,6 +1,9 @@
 /**
- * Checkers Cell Component
- * Represents a single square on the checkers board with wood texture
+ * Cell Component
+ *
+ * Single board square. Handles click/keyboard interaction, piece rendering,
+ * animation CSS variables (--slide-from-x/y), and accessible labels.
+ * Only dark squares (isDark=true) are focusable.
  */
 
 import React from 'react'
@@ -85,7 +88,7 @@ export const Cell = React.memo(function Cell({
 
   // Cursor classes
   const cursorClasses = disabled
-    ? ''
+    ? 'pointer-events-none'
     : piece !== null || isHighlighted
       ? 'cursor-pointer hover:brightness-110 active:brightness-95'
       : ''
@@ -114,7 +117,7 @@ export const Cell = React.memo(function Cell({
       aria-label={cellDescription}
       aria-selected={isSelected}
       aria-disabled={disabled}
-      tabIndex={!disabled && (piece !== null || isHighlighted) ? 0 : -1}
+      tabIndex={!disabled && isDark ? 0 : -1}
     >
       {/* Highlight indicator for valid moves */}
       {isHighlighted && !piece && (

@@ -1,10 +1,14 @@
 /**
- * Checkers Board Component
- * Renders the 8x8 checkerboard with premium wood texture and frame
+ * Board Component
+ *
+ * Renders the 8x8 checkerboard grid with wooden frame, column labels, and
+ * animation state forwarding. Supports keyboard navigation (arrow keys).
+ * Uses intermediateBoard during multi-jump animations for visual accuracy.
  */
 
-import React from 'react'
+import React, { useCallback } from 'react'
 import type { Board as BoardType, Move, Position } from '@/types/checkers.types'
+import { BOARD_SIZE } from '@/types/checkers.types'
 import { Cell } from './Cell'
 
 // Column labels for algebraic notation (a-h)
@@ -24,6 +28,7 @@ interface BoardProps {
   } | null
   capturedPiece?: Position | null
   promotedPiece?: Position | null
+  intermediateBoard?: BoardType | null
 }
 
 export const Board = React.memo(function Board({
@@ -36,7 +41,48 @@ export const Board = React.memo(function Board({
   animatingPiece,
   capturedPiece,
   promotedPiece,
+  intermediateBoard,
 }: BoardProps) {
+  // Arrow key navigation between cells
+  const handleGridKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const arrowKeys: Record<string, { dRow: number; dCol: number }> = {
+        ArrowUp: { dRow: -1, dCol: 0 },
+        ArrowDown: { dRow: 1, dCol: 0 },
+        ArrowLeft: { dRow: 0, dCol: -1 },
+        ArrowRight: { dRow: 0, dCol: 1 },
+      }
+      const direction = arrowKeys[e.key]
+      if (!direction) return
+
+      const active = document.activeElement as HTMLElement | null
+      if (!active) return
+
+      const currentRow = Number(active.getAttribute('data-row'))
+      const currentCol = Number(active.getAttribute('data-col'))
+      if (isNaN(currentRow) || isNaN(currentCol)) return
+
+      const nextRow = currentRow + direction.dRow
+      const nextCol = currentCol + direction.dCol
+      if (
+        nextRow < 0 ||
+        nextRow >= BOARD_SIZE ||
+        nextCol < 0 ||
+        nextCol >= BOARD_SIZE
+      )
+        return
+
+      e.preventDefault()
+      const target = e.currentTarget.querySelector<HTMLElement>(
+        `[data-row="${nextRow}"][data-col="${nextCol}"]`
+      )
+      target?.focus()
+    },
+    []
+  )
+
+  // Use intermediate board during multi-jump animations for accurate visual state
+  const displayBoard = intermediateBoard || board
   return (
     <div className="w-full max-w-[95vw] sm:max-w-2xl mx-auto px-1 sm:px-0">
       {/* Wooden Frame */}
@@ -47,8 +93,9 @@ export const Board = React.memo(function Board({
             className="grid grid-cols-8 gap-0 aspect-square"
             role="grid"
             aria-label="Checkers game board"
+            onKeyDown={handleGridKeyDown}
           >
-            {board.map((row, rowIndex) =>
+            {displayBoard.map((row, rowIndex) =>
               row.map((cell, colIndex) => {
                 const isDark = (rowIndex + colIndex) % 2 === 1
 
