@@ -104,12 +104,13 @@ describe('Cell', () => {
   })
 
   describe('selected state', () => {
-    it('applies cell-selected class when isSelected and not highlighted', () => {
+    it('marks the cell selected without a cell tint when isSelected and not highlighted', () => {
       const { container } = render(
         <Cell {...defaultProps} isSelected={true} isHighlighted={false} />
       )
       const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).toContain('cell-selected')
+      expect(cellDiv).toHaveAttribute('aria-selected', 'true')
+      expect(cellDiv.className).not.toContain('cell-selected')
     })
 
     it('highlighted takes visual priority over selected', () => {
@@ -297,7 +298,7 @@ describe('Cell', () => {
         <Cell {...defaultProps} lastMoveFrom={true} isSelected={false} isHighlighted={false} />
       )
       const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).toContain('ring-amber-400/40')
+      expect(cellDiv.className).toContain('ring-primary/40')
     })
 
     it('applies last move ring when lastMoveTo is true and not selected/highlighted', () => {
@@ -305,7 +306,7 @@ describe('Cell', () => {
         <Cell {...defaultProps} lastMoveTo={true} isSelected={false} isHighlighted={false} />
       )
       const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).toContain('ring-amber-400/40')
+      expect(cellDiv.className).toContain('ring-primary/40')
     })
 
     it('does not apply last move ring when isSelected is true', () => {
@@ -313,7 +314,7 @@ describe('Cell', () => {
         <Cell {...defaultProps} lastMoveFrom={true} isSelected={true} isHighlighted={false} />
       )
       const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).not.toContain('ring-amber-400/40')
+      expect(cellDiv.className).not.toContain('ring-primary/40')
     })
   })
 })

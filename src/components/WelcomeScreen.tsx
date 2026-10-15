@@ -1,8 +1,8 @@
 /**
  * Welcome Screen Component
  *
- * Initial setup screen. PvC mode shows character cards for opponent selection.
- * PvP mode shows a simple description. Supports resuming saved games.
+ * Setup screen on the table. One player mode shows three outlined opponent cards;
+ * two player mode shows a short note. Supports resuming saved games.
  */
 
 import React from 'react'
@@ -22,25 +22,7 @@ interface WelcomeScreenProps {
 
 const characters = getAllCharacters()
 
-// Mini checkerboard pattern for decoration
-function MiniCheckerboard() {
-  const size = 4
-  return (
-    <div className="grid grid-cols-4 gap-0 w-20 h-20 rounded-lg overflow-hidden shadow-md border border-amber-800/30">
-      {Array.from({ length: size * size }, (_, i) => {
-        const row = Math.floor(i / size)
-        const col = i % size
-        const isDark = (row + col) % 2 === 1
-        return (
-          <div
-            key={i}
-            className={isDark ? 'wood-dark' : 'wood-light'}
-          />
-        )
-      })}
-    </div>
-  )
-}
+const LEVEL_LABELS: Record<string, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
 
 export const WelcomeScreen = React.memo(function WelcomeScreen({
   mode,
@@ -52,123 +34,86 @@ export const WelcomeScreen = React.memo(function WelcomeScreen({
   onResumeGame,
 }: WelcomeScreenProps) {
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-lg px-4">
-      {/* Title */}
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <MiniCheckerboard />
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Checkers</h1>
-            <p className="text-sm text-gray-500">at Coop's Arcade</p>
-          </div>
-          <MiniCheckerboard />
-        </div>
+    <div className="flex w-full max-w-md flex-col items-center gap-6 pt-2 sm:pt-6">
+      {/* Mode */}
+      <div
+        className="flex w-full max-w-xs rounded-md border bg-card p-1"
+        role="group"
+        aria-label="Game mode"
+      >
+        {(
+          [
+            ['pvc', 'One player'],
+            ['pvp', 'Two players'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            className={`min-h-11 flex-1 rounded-sm px-3 text-sm font-semibold transition-colors ${
+              mode === value
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            onClick={() => onModeChange(value)}
+            aria-pressed={mode === value}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {/* Mode Toggle */}
-      <div className="flex rounded-lg bg-gray-100 p-1 w-full max-w-xs">
-        <button
-          className={`flex-1 rounded-md py-2.5 text-sm font-semibold transition-all ${
-            mode === 'pvc'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-          onClick={() => onModeChange('pvc')}
-        >
-          vs AI
-        </button>
-        <button
-          className={`flex-1 rounded-md py-2.5 text-sm font-semibold transition-all ${
-            mode === 'pvp'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-          onClick={() => onModeChange('pvp')}
-        >
-          vs Player
-        </button>
-      </div>
-
-      {/* AI Opponent Cards (shown when vs AI) */}
+      {/* Opponent cards */}
       {mode === 'pvc' && (
-        <div className="flex flex-col gap-3 w-full">
-          <h2 className="text-sm font-semibold text-gray-600 text-center">Choose Your Opponent</h2>
-          <div className="grid gap-3">
-            {characters.map((char) => {
-              const isSelected = char.difficulty === difficulty
-              return (
-                <button
-                  key={char.id}
-                  className={`flex items-center gap-3 rounded-xl p-3 sm:p-4 text-left transition-all border-2 ${
-                    isSelected
-                      ? 'border-current shadow-lg scale-[1.02]'
-                      : 'border-transparent bg-white shadow-sm hover:shadow-md hover:scale-[1.01]'
-                  }`}
-                  style={isSelected ? {
-                    borderColor: char.color,
-                    backgroundColor: `${char.color}10`,
-                  } : undefined}
-                  onClick={() => onDifficultyChange(char.difficulty as Difficulty)}
-                >
-                  <img
-                    src={char.avatar}
-                    alt={`${char.name} avatar`}
-                    className="h-12 w-12 sm:h-14 sm:w-14 rounded-full border-2 shrink-0"
-                    style={{ borderColor: char.color }}
-                  />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-gray-800">{char.name}</span>
-                      <span>{char.emoji}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">
-                        {char.difficulty}
-                      </span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-gray-500 truncate">{char.playingStyle}</p>
+        <div className="grid w-full gap-3" role="group" aria-label="Opponent">
+          {characters.map((char) => {
+            const isSelected = char.difficulty === difficulty
+            return (
+              <button
+                key={char.id}
+                type="button"
+                className={`flex min-h-16 items-center gap-4 rounded-md border bg-card p-3 text-left transition-colors hover:bg-secondary ${
+                  isSelected ? 'border-primary bg-secondary' : 'border-border'
+                }`}
+                onClick={() => onDifficultyChange(char.difficulty as Difficulty)}
+                aria-pressed={isSelected}
+              >
+                <img
+                  src={char.avatar}
+                  alt={`${char.name} avatar`}
+                  className="h-12 w-12 shrink-0 rounded-full object-cover"
+                  style={{ boxShadow: `0 0 0 2px var(--arcade-${char.id})` }}
+                />
+                <div className="min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-semibold">{char.name}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {LEVEL_LABELS[char.difficulty] ?? char.difficulty}
+                    </span>
                   </div>
-                  {isSelected && (
-                    <div
-                      className="ml-auto shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-sm"
-                      style={{ backgroundColor: char.color }}
-                    >
-                      ✓
-                    </div>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+                  <p className="text-sm text-muted-foreground">{char.playingStyle}</p>
+                </div>
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {/* PvP description */}
+      {/* Two player note */}
       {mode === 'pvp' && (
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm w-full text-center">
-          <div className="flex items-center justify-center gap-4 mb-3">
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-red-500 to-red-700 shadow-md" />
-            <span className="text-lg font-bold text-gray-400">vs</span>
-            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-gray-700 to-black shadow-md" />
-          </div>
-          <p className="text-sm text-gray-600">Play against a friend on the same device. Red goes first!</p>
-        </div>
+        <p className="w-full rounded-md border bg-card p-4 text-center text-sm text-muted-foreground">
+          Play against a friend on the same device. Red goes first.
+        </p>
       )}
 
-      {/* Start / Resume Game Buttons */}
-      <div className="flex flex-col gap-2 w-full max-w-xs">
-        <Button
-          onClick={onStartGame}
-          className="w-full h-12 text-lg font-bold shadow-lg"
-          size="lg"
-        >
-          Start Game
+      {/* Start / Resume */}
+      <div className="flex w-full max-w-xs flex-col gap-2">
+        <Button onClick={onStartGame} className="h-11 w-full">
+          Start game
         </Button>
         {hasSaved && onResumeGame && (
-          <Button
-            onClick={onResumeGame}
-            variant="outline"
-            className="w-full h-10 text-base font-semibold"
-          >
-            Resume Saved Game
+          <Button onClick={onResumeGame} variant="outline" className="h-11 w-full">
+            Resume saved game
           </Button>
         )}
       </div>

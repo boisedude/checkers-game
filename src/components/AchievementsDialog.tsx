@@ -36,16 +36,16 @@ export const AchievementsDialog = React.memo(function AchievementsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Achievements</span>
             <span className="text-sm font-normal text-muted-foreground">
-              {unlockedCount} / {totalCount} Unlocked
+              {unlockedCount} of {totalCount} unlocked
             </span>
           </DialogTitle>
           <DialogDescription>
-            Complete challenges to unlock achievements.
+            Finish games in particular ways to unlock these.
           </DialogDescription>
         </DialogHeader>
 
@@ -59,23 +59,14 @@ export const AchievementsDialog = React.memo(function AchievementsDialog({
             return (
               <div
                 key={achievement.id}
-                className={`flex items-start gap-3 rounded-lg border p-3 transition-colors ${
-                  isUnlocked
-                    ? 'border-amber-500/30 bg-amber-950/20'
-                    : 'border-muted bg-muted/30 opacity-50'
+                className={`flex items-start gap-3 rounded-md border p-3 ${
+                  isUnlocked ? 'border-primary/50 bg-secondary' : 'bg-card opacity-60'
                 }`}
               >
-                <span
-                  className={`text-2xl ${isUnlocked ? '' : 'grayscale'}`}
-                  role="img"
-                  aria-hidden="true"
-                >
-                  {achievement.icon}
-                </span>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span
                     className={`text-sm font-semibold ${
-                      isUnlocked ? 'text-amber-200' : 'text-muted-foreground'
+                      isUnlocked ? 'text-foreground' : 'text-muted-foreground'
                     }`}
                   >
                     {achievement.name}
@@ -84,7 +75,7 @@ export const AchievementsDialog = React.memo(function AchievementsDialog({
                     {achievement.description}
                   </span>
                   {unlockDate && (
-                    <span className="mt-1 text-xs text-amber-500/70">
+                    <span className="mt-1 text-xs text-primary">
                       Unlocked {unlockDate}
                     </span>
                   )}
@@ -95,7 +86,7 @@ export const AchievementsDialog = React.memo(function AchievementsDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} variant="outline" className="w-full sm:w-auto">
+          <Button onClick={onClose} variant="outline" className="h-11 w-full sm:w-auto">
             Close
           </Button>
         </DialogFooter>

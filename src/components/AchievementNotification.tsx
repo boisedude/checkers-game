@@ -24,6 +24,7 @@ export const AchievementNotification = React.memo(
 
     useEffect(() => {
       if (!achievement) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setVisible(false)
         return
       }
@@ -58,18 +59,9 @@ export const AchievementNotification = React.memo(
         role="status"
         aria-live="polite"
       >
-        <div className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-gradient-to-r from-amber-950/95 to-yellow-950/95 px-5 py-3 shadow-lg shadow-amber-500/20 backdrop-blur-sm">
-          <span className="text-3xl" role="img" aria-hidden="true">
-            {achievement.icon}
-          </span>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-wider text-amber-400">
-              Achievement Unlocked!
-            </span>
-            <span className="text-sm font-bold text-amber-50">
-              {achievement.name}
-            </span>
-          </div>
+        <div className="rounded-md border bg-card px-4 py-3 shadow-lg">
+          <div className="text-xs text-muted-foreground">Achievement unlocked</div>
+          <div className="text-sm font-semibold text-foreground">{achievement.name}</div>
         </div>
       </div>
     )

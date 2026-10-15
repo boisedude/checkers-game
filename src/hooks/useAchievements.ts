@@ -56,7 +56,6 @@ function createDefaultAchievementState(): AchievementState {
       id,
       name: def.name,
       description: def.description,
-      icon: def.icon,
       unlockedAt: undefined,
     }
   }
@@ -83,8 +82,7 @@ function isValidAchievementState(data: unknown): data is AchievementState {
     if (
       typeof achievement.id !== 'string' ||
       typeof achievement.name !== 'string' ||
-      typeof achievement.description !== 'string' ||
-      typeof achievement.icon !== 'string'
+      typeof achievement.description !== 'string'
     ) {
       return false
     }

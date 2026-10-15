@@ -17,50 +17,38 @@ describe('WelcomeScreen', () => {
     jest.clearAllMocks()
   })
 
-  describe('title and layout', () => {
-    it('renders the Checkers title', () => {
-      render(<WelcomeScreen {...defaultProps} />)
-      expect(screen.getByText('Checkers')).toBeInTheDocument()
-    })
-
-    it('renders arcade subtitle', () => {
-      render(<WelcomeScreen {...defaultProps} />)
-      expect(screen.getByText("at Coop's Arcade")).toBeInTheDocument()
-    })
-  })
-
   describe('mode toggle buttons', () => {
-    it('renders vs AI button', () => {
+    it('renders one player button', () => {
       render(<WelcomeScreen {...defaultProps} />)
-      expect(screen.getByText('vs AI')).toBeInTheDocument()
+      expect(screen.getByText('One player')).toBeInTheDocument()
     })
 
-    it('renders vs Player button', () => {
+    it('renders two players button', () => {
       render(<WelcomeScreen {...defaultProps} />)
-      expect(screen.getByText('vs Player')).toBeInTheDocument()
+      expect(screen.getByText('Two players')).toBeInTheDocument()
     })
 
-    it('calls onModeChange with pvc when vs AI button clicked', () => {
+    it('calls onModeChange with pvc when one player button clicked', () => {
       const onModeChange = jest.fn()
       render(<WelcomeScreen {...defaultProps} onModeChange={onModeChange} />)
 
-      fireEvent.click(screen.getByText('vs AI'))
+      fireEvent.click(screen.getByText('One player'))
       expect(onModeChange).toHaveBeenCalledWith('pvc')
     })
 
-    it('calls onModeChange with pvp when vs Player button clicked', () => {
+    it('calls onModeChange with pvp when two players button clicked', () => {
       const onModeChange = jest.fn()
       render(<WelcomeScreen {...defaultProps} onModeChange={onModeChange} />)
 
-      fireEvent.click(screen.getByText('vs Player'))
+      fireEvent.click(screen.getByText('Two players'))
       expect(onModeChange).toHaveBeenCalledWith('pvp')
     })
   })
 
   describe('PvC mode (vs AI)', () => {
-    it('shows Choose Your Opponent heading in PvC mode', () => {
+    it('groups the opponent cards under an Opponent label', () => {
       render(<WelcomeScreen {...defaultProps} mode="pvc" />)
-      expect(screen.getByText('Choose Your Opponent')).toBeInTheDocument()
+      expect(screen.getByRole('group', { name: 'Opponent' })).toBeInTheDocument()
     })
 
     it('shows all three AI opponent cards', () => {
@@ -72,9 +60,9 @@ describe('WelcomeScreen', () => {
 
     it('shows difficulty labels on opponent cards', () => {
       render(<WelcomeScreen {...defaultProps} mode="pvc" />)
-      expect(screen.getByText('easy')).toBeInTheDocument()
-      expect(screen.getByText('medium')).toBeInTheDocument()
-      expect(screen.getByText('hard')).toBeInTheDocument()
+      expect(screen.getByText('Easy')).toBeInTheDocument()
+      expect(screen.getByText('Medium')).toBeInTheDocument()
+      expect(screen.getByText('Hard')).toBeInTheDocument()
     })
 
     it('shows avatar images for each character', () => {
@@ -124,58 +112,49 @@ describe('WelcomeScreen', () => {
     it('shows PvP description in PvP mode', () => {
       render(<WelcomeScreen {...defaultProps} mode="pvp" />)
       expect(
-        screen.getByText('Play against a friend on the same device. Red goes first!')
+        screen.getByText('Play against a friend on the same device. Red goes first.')
       ).toBeInTheDocument()
     })
 
     it('does not show AI opponent cards in PvP mode', () => {
       render(<WelcomeScreen {...defaultProps} mode="pvp" />)
-      expect(screen.queryByText('Choose Your Opponent')).not.toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: 'Opponent' })).not.toBeInTheDocument()
       expect(screen.queryByText('Bella')).not.toBeInTheDocument()
       expect(screen.queryByText('Coop')).not.toBeInTheDocument()
       expect(screen.queryByText('Bentley')).not.toBeInTheDocument()
     })
 
-    it('shows vs text between player indicators', () => {
-      render(<WelcomeScreen {...defaultProps} mode="pvp" />)
-      expect(screen.getByText('vs')).toBeInTheDocument()
-    })
   })
 
   describe('start game button', () => {
-    it('renders Start Game button', () => {
+    it('renders Start game button', () => {
       render(<WelcomeScreen {...defaultProps} />)
-      expect(screen.getByText('Start Game')).toBeInTheDocument()
+      expect(screen.getByText('Start game')).toBeInTheDocument()
     })
 
-    it('calls onStartGame when Start Game button is clicked', () => {
+    it('calls onStartGame when Start game button is clicked', () => {
       const onStartGame = jest.fn()
       render(<WelcomeScreen {...defaultProps} onStartGame={onStartGame} />)
 
-      fireEvent.click(screen.getByText('Start Game'))
+      fireEvent.click(screen.getByText('Start game'))
       expect(onStartGame).toHaveBeenCalledTimes(1)
     })
 
-    it('Start Game button is present in both modes', () => {
+    it('Start game button is present in both modes', () => {
       const { rerender } = render(<WelcomeScreen {...defaultProps} mode="pvc" />)
-      expect(screen.getByText('Start Game')).toBeInTheDocument()
+      expect(screen.getByText('Start game')).toBeInTheDocument()
 
       rerender(<WelcomeScreen {...defaultProps} mode="pvp" />)
-      expect(screen.getByText('Start Game')).toBeInTheDocument()
+      expect(screen.getByText('Start game')).toBeInTheDocument()
     })
   })
 
   describe('selected opponent visual feedback', () => {
-    it('shows checkmark for selected difficulty', () => {
-      const { container } = render(
-        <WelcomeScreen {...defaultProps} mode="pvc" difficulty="medium" />
-      )
-      // The checkmark character is rendered for the selected card
-      const checkmarks = container.querySelectorAll('div')
-      const checkmarkElements = Array.from(checkmarks).filter(
-        el => el.textContent === '\u2713' // Unicode check mark
-      )
-      expect(checkmarkElements.length).toBe(1)
+    it('marks only the selected difficulty as pressed', () => {
+      render(<WelcomeScreen {...defaultProps} mode="pvc" difficulty="medium" />)
+      expect(screen.getByRole('button', { name: /Coop/ })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: /Bella/ })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByRole('button', { name: /Bentley/ })).toHaveAttribute('aria-pressed', 'false')
     })
   })
 })

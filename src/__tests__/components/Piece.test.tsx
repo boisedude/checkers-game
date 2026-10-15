@@ -70,14 +70,12 @@ describe('Piece', () => {
       const { container } = render(<Piece piece={redRegular} isSelected={true} />)
       const pieceDiv = container.firstElementChild as HTMLElement
       expect(pieceDiv.className).toContain('piece-selected')
-      expect(pieceDiv.className).toContain('animate-selected-glow')
     })
 
     it('does not apply selected classes when isSelected is false', () => {
       const { container } = render(<Piece piece={redRegular} isSelected={false} />)
       const pieceDiv = container.firstElementChild as HTMLElement
       expect(pieceDiv.className).not.toContain('piece-selected')
-      expect(pieceDiv.className).not.toContain('animate-selected-glow')
     })
 
     it('includes selected status in ARIA label', () => {

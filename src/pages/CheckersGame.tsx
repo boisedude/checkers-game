@@ -25,17 +25,19 @@ import { AudioControls } from '@/components/AudioControls'
 import { AchievementNotification } from '@/components/AchievementNotification'
 import { AchievementsDialog } from '@/components/AchievementsDialog'
 import { GameHistoryDialog } from '@/components/GameHistoryDialog'
+import { OpponentChip } from '@/components/OpponentChip'
 import { Button } from '@/components/ui/button'
 import { useCheckersGame } from '@/hooks/useCheckersGame'
 import { useLeaderboard } from '@/hooks/useLeaderboard'
 import { useGameAudio } from '@/hooks/useGameAudio'
 import { useBackgroundMusic } from '@/hooks/useBackgroundMusic'
-import { useCharacterSelection } from '@/hooks/useCharacterSelection'
+import { useCharacterSelection, getInitialDifficulty } from '@/hooks/useCharacterSelection'
 import { useBentleyStats } from '@/hooks/useBentleyStats'
-import { useMainSiteBentleyStats } from '@/hooks/useMainSiteBentleyStats'
+import { recordPlayerBeatBentley, recordBentleyBeatPlayer } from '@shared/arcadeRecord'
 import { useAchievements } from '@/hooks/useAchievements'
 import type { AchievementContext } from '@/hooks/useAchievements'
 import { useGameHistory } from '@/hooks/useGameHistory'
+import { ArrowLeftIcon, HelpIcon } from '@shared/icons'
 import { STORAGE_KEYS } from '@/lib/storageKeys'
 import { PROMOTION_SOUND_DELAY_MS } from '@/lib/gameConstants'
 
@@ -62,11 +64,10 @@ export function CheckersGame() {
     isPieceSelected,
     canUndo,
     hasSavedGame: hasSaved,
-  } = useCheckersGame()
+  } = useCheckersGame(getInitialDifficulty())
 
-  const { character, changeCharacter } = useCharacterSelection(gameState.difficulty)
+  const { character } = useCharacterSelection(gameState.difficulty)
   const { recordBentleyWin: recordLocalBentleyWin, recordBentleyLoss: recordLocalBentleyLoss, recordBentleyDraw } = useBentleyStats()
-  const mainSiteBentleyStats = useMainSiteBentleyStats()
   const { stats, recordWin, recordLoss, recordDraw, updatePlayerName, resetStats } = useLeaderboard()
   const { isMuted: isSfxMuted, toggleMute: toggleSfxMute, playDiscPlace, playVictory, playDefeat, playDraw, playCapture, playMultiJump, playKingPromotion, playAchievementUnlock } = useGameAudio()
   const { isMusicMuted, toggleMusicMute } = useBackgroundMusic(gameState.status === 'playing')
@@ -93,9 +94,35 @@ export function CheckersGame() {
   const isPvP = gameState.mode === 'pvp'
   const isSetup = gameState.status === 'setup'
 
-  // Show tutorial on first visit (only after game starts, not during setup)
+  // Arrived from the arcade with a valid ?character=: the opponent is chosen, so skip
+  // setup and start a one-player game at once. Runs once.
+  const autoStartedRef = useRef(false)
   useEffect(() => {
-    if (!hasCompletedTutorial && gameState.status === 'playing') {
+    if (autoStartedRef.current) return
+    autoStartedRef.current = true
+    let id: string | null = null
+    try {
+      id = new URLSearchParams(window.location.search).get('character')?.toLowerCase() ?? null
+    } catch {
+      id = null
+    }
+    if (id === 'bella' || id === 'coop' || id === 'bentley') {
+      gameStartTimeRef.current = Date.now()
+      startGame('pvc', getInitialDifficulty())
+    }
+  }, [startGame])
+
+  // Show tutorial on first visit (only after game starts, not during setup).
+  // Never when launched from the arcade with ?character=, which picked the
+  // opponent already and expects play to start at once.
+  useEffect(() => {
+    let launchedFromArcade = false
+    try {
+      launchedFromArcade = new URLSearchParams(window.location.search).has('character')
+    } catch {
+      launchedFromArcade = false
+    }
+    if (!hasCompletedTutorial && !launchedFromArcade && gameState.status === 'playing') {
       const timer = setTimeout(() => {
         setShowTutorial(true)
       }, TUTORIAL_SHOW_DELAY_MS)
@@ -162,7 +189,7 @@ export function CheckersGame() {
             // Track Bentley stats if playing on hard
             if (gameState.difficulty === 'hard') {
               recordLocalBentleyWin(margin, totalCaptures, isPerfect)
-              mainSiteBentleyStats.recordBentleyLoss()
+              recordPlayerBeatBentley()
             }
           }
         } else if (gameState.winner === 2) {
@@ -176,7 +203,7 @@ export function CheckersGame() {
             // Track Bentley stats if playing on hard
             if (gameState.difficulty === 'hard') {
               recordLocalBentleyLoss(margin, totalCaptures)
-              mainSiteBentleyStats.recordBentleyWin()
+              recordBentleyBeatPlayer()
             }
           }
         }
@@ -245,7 +272,7 @@ export function CheckersGame() {
     }
 
     prevStatusRef.current = gameState.status
-  }, [gameState.status, gameState.winner, gameState.difficulty, gameState.redCount, gameState.blackCount, gameState.moveHistory, gameState.mode, gameState.hadKingCaptured, gameState.wasDownBy3OrMore, isPvP, playVictory, playDefeat, playDraw, recordWin, recordLoss, recordDraw, recordLocalBentleyWin, recordLocalBentleyLoss, recordBentleyDraw, mainSiteBentleyStats, addGameRecord, checkAchievements, stats])
+  }, [gameState.status, gameState.winner, gameState.difficulty, gameState.redCount, gameState.blackCount, gameState.moveHistory, gameState.mode, gameState.hadKingCaptured, gameState.wasDownBy3OrMore, isPvP, playVictory, playDefeat, playDraw, recordWin, recordLoss, recordDraw, recordLocalBentleyWin, recordLocalBentleyLoss, recordBentleyDraw, addGameRecord, checkAchievements, stats])
 
   // Play sound when moves are made (differentiated by move type)
   useEffect(() => {
@@ -300,9 +327,8 @@ export function CheckersGame() {
   const handleDifficultyChange = useCallback(
     (difficulty: 'easy' | 'medium' | 'hard') => {
       changeDifficulty(difficulty)
-      changeCharacter(difficulty)
     },
-    [changeDifficulty, changeCharacter]
+    [changeDifficulty]
   )
 
   const handleModeChange = useCallback(
@@ -334,152 +360,139 @@ export function CheckersGame() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [canUndo, undoMove])
 
-  // Setup / Welcome screen
-  if (isSetup) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-start bg-gradient-to-br from-gray-100 to-gray-200 p-2 sm:p-4 sm:justify-center">
-        {/* Audio Controls - top right */}
-        <div className="fixed top-2 right-2 z-50">
-          <AudioControls
-            isSfxMuted={isSfxMuted}
-            isMusicMuted={isMusicMuted}
-            onToggleSfx={toggleSfxMute}
-            onToggleMusic={toggleMusicMute}
-          />
-        </div>
+  const opponent = character.name
+  const kingsNote = (kings: number) => (kings > 0 ? ` (${kings} ${kings === 1 ? 'king' : 'kings'})` : '')
 
-        {/* Return to Arcade Button */}
-        <div className="w-full max-w-lg mb-3 sm:mb-4 px-4">
-          <a href="https://www.mcooper.com/arcade/" className="block">
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto h-10 sm:h-11 text-sm sm:text-base font-semibold border-2 hover:bg-gray-100 hover:border-gray-400"
-            >
-              ← Return to Arcade
-            </Button>
-          </a>
-        </div>
-
-        <WelcomeScreen
-          mode={gameState.mode}
-          difficulty={gameState.difficulty}
-          onModeChange={handleModeChange}
-          onDifficultyChange={handleDifficultyChange}
-          onStartGame={handleStartGame}
-          hasSavedGame={hasSaved()}
-          onResumeGame={handleResumeGame}
-        />
-      </div>
-    )
+  let turnText: string
+  if (gameState.status === 'won') {
+    turnText = isPvP
+      ? gameState.winner === 1
+        ? 'Red won'
+        : 'Black won'
+      : gameState.winner === 1
+        ? 'You won'
+        : `${opponent} won`
+  } else if (gameState.status === 'draw') {
+    turnText = 'Draw'
+  } else if (isPvP) {
+    const side = gameState.currentPlayer === 1 ? 'Red' : 'Black'
+    turnText = gameState.mustJump ? `${side} must jump` : `${side}'s turn`
+  } else if (gameState.currentPlayer === 1) {
+    turnText = gameState.mustJump ? 'You must jump' : 'Your turn'
+  } else {
+    turnText = `${opponent} is thinking`
   }
+  const turnActive =
+    gameState.status === 'won' || gameState.status === 'draw'
+      ? 'over'
+      : !isPvP && gameState.currentPlayer === 2
+        ? 'opponent'
+        : 'you'
 
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-start bg-gradient-to-br from-gray-100 to-gray-200 p-2 sm:p-4 sm:justify-center">
-      {/* Audio Controls - top right */}
-      <div className="fixed top-2 right-2 z-50">
+  const topBar = (
+    <header className="arcade-topbar">
+      <div className="flex flex-1 items-center">
+        <a
+          href="https://www.mcooper.com/arcade/"
+          className="inline-flex min-h-11 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeftIcon size={18} />
+          Arcade
+        </a>
+      </div>
+      <h1 className="arcade-display sr-only text-xl sm:not-sr-only">Checkers</h1>
+      <div className="flex flex-1 items-center justify-end gap-1">
+        {!isSetup && !isPvP && (
+          <OpponentChip
+            character={character}
+            difficulty={gameState.difficulty}
+            onDifficultyChange={handleDifficultyChange}
+          />
+        )}
         <AudioControls
           isSfxMuted={isSfxMuted}
           isMusicMuted={isMusicMuted}
           onToggleSfx={toggleSfxMute}
           onToggleMusic={toggleMusicMute}
         />
-      </div>
-
-      {/* Return to Arcade Button */}
-      <div className="w-full max-w-2xl mb-3 sm:mb-4">
-        <a href="https://www.mcooper.com/arcade/" className="block">
+        {!isSetup && (
           <Button
-            variant="outline"
-            className="w-full sm:w-auto h-10 sm:h-11 text-sm sm:text-base font-semibold border-2 hover:bg-gray-100 hover:border-gray-400"
+            variant="ghost"
+            size="icon"
+            className="h-11 w-11 shrink-0"
+            onClick={() => setShowTutorial(true)}
+            aria-label="How to play"
           >
-            ← Return to Arcade
+            <HelpIcon />
           </Button>
-        </a>
+        )}
       </div>
+    </header>
+  )
 
-      {/* Character Info (PvC only) */}
-      {!isPvP && (
-        <div className="mb-3 sm:mb-6 flex items-center gap-3 sm:gap-4 rounded-lg bg-white p-3 sm:p-4 shadow-lg w-full max-w-md" role="region" aria-label="Current opponent">
-          <img
-            src={character.avatar}
-            alt={`${character.name} avatar`}
-            className="h-12 w-12 sm:h-16 sm:w-16 rounded-full border-2 border-amber-500"
+  // Setup / Welcome screen
+  if (isSetup) {
+    return (
+      <div className="arcade-page">
+        {topBar}
+        <main className="arcade-stage">
+          <WelcomeScreen
+            mode={gameState.mode}
+            difficulty={gameState.difficulty}
+            onModeChange={handleModeChange}
+            onDifficultyChange={handleDifficultyChange}
+            onStartGame={handleStartGame}
+            hasSavedGame={hasSaved()}
+            onResumeGame={handleResumeGame}
           />
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="arcade-page">
+      <a
+        href="#game-board"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:text-foreground"
+      >
+        Skip to game board
+      </a>
+      {topBar}
+
+      <main className="arcade-stage">
+        <div className="arcade-score" aria-live="polite">
           <div>
-            <h3 className="text-lg sm:text-xl font-bold text-gray-800">
-              {character.name} {character.emoji}
-            </h3>
-            <p className="text-xs sm:text-sm text-gray-600">{character.playingStyle}</p>
+            <strong>{gameState.redCount}</strong>
+            {isPvP ? 'Red' : 'You'}
+            {kingsNote(gameState.redKings)}
+          </div>
+          <div className="arcade-turn" data-active={turnActive} role="status">
+            {turnText}
+          </div>
+          <div>
+            <strong>{gameState.blackCount}</strong>
+            {isPvP ? 'Black' : opponent}
+            {kingsNote(gameState.blackKings)}
           </div>
         </div>
-      )}
 
-      {/* Game Info */}
-      <div className="mb-3 sm:mb-6 flex gap-4 sm:gap-8 rounded-lg bg-white p-3 sm:p-4 shadow-lg w-full max-w-md" role="region" aria-label="Piece count">
-        <div className="text-center flex-1">
-          <div className="text-xl sm:text-2xl font-bold text-red-600">{gameState.redCount}</div>
-          <div className="text-xs sm:text-sm text-gray-600">{isPvP ? 'Red' : 'Your Pieces'}</div>
-          {gameState.redKings > 0 && (
-            <div className="text-xs text-yellow-600">({gameState.redKings} ♛)</div>
-          )}
+        <div id="game-board" className="flex w-full justify-center">
+          <Board
+            board={gameState.board}
+            onSquareClick={handleSquareClick}
+            isHighlighted={isHighlighted}
+            isPieceSelected={isPieceSelected}
+            disabled={isAnimating || gameState.status !== 'playing'}
+            lastMove={gameState.lastMove}
+            animatingPiece={animatingPiece}
+            capturedPiece={capturedPiece}
+            promotedPiece={promotedPiece}
+            intermediateBoard={intermediateBoard}
+          />
         </div>
-        <div className="border-l border-gray-300" />
-        <div className="text-center flex-1">
-          <div className="text-xl sm:text-2xl font-bold text-gray-800">{gameState.blackCount}</div>
-          <div className="text-xs sm:text-sm text-gray-600">{isPvP ? 'Black' : `${character.name}'s Pieces`}</div>
-          {gameState.blackKings > 0 && (
-            <div className="text-xs text-yellow-600">({gameState.blackKings} ♛)</div>
-          )}
-        </div>
-      </div>
 
-      {/* Turn indicator */}
-      <div className="mb-3 sm:mb-4 text-center" role="status" aria-live="polite">
-        <p className="text-base sm:text-lg font-semibold text-gray-700">
-          {isPvP
-            ? gameState.currentPlayer === 1
-              ? "Red's Turn"
-              : "Black's Turn"
-            : gameState.currentPlayer === 1
-              ? 'Your Turn'
-              : `${character.name}'s Turn`
-          }
-        </p>
-        {gameState.mustJump && gameState.currentPlayer === 1 && !isPvP && (
-          <p className="text-sm text-red-600 font-semibold">You must jump!</p>
-        )}
-        {gameState.mustJump && isPvP && (
-          <p className="text-sm text-red-600 font-semibold">
-            {gameState.currentPlayer === 1 ? 'Red' : 'Black'} must jump!
-          </p>
-        )}
-        {!isPvP && gameState.currentPlayer === 2 && gameState.status === 'playing' && (
-          <div className="flex items-center justify-center gap-2 mt-1">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-400 border-t-gray-800" />
-            <span className="text-sm text-gray-600">{character.name} is thinking...</span>
-          </div>
-        )}
-      </div>
-
-      {/* Board */}
-      <Board
-        board={gameState.board}
-        onSquareClick={handleSquareClick}
-        isHighlighted={isHighlighted}
-        isPieceSelected={isPieceSelected}
-        disabled={isAnimating || gameState.status !== 'playing'}
-        lastMove={gameState.lastMove}
-        animatingPiece={animatingPiece}
-        capturedPiece={capturedPiece}
-        promotedPiece={promotedPiece}
-        intermediateBoard={intermediateBoard}
-      />
-
-      {/* Game Controls */}
-      <div className="mt-4 sm:mt-8 mb-4 w-full max-w-2xl px-2">
         <GameControls
-          difficulty={gameState.difficulty}
-          onDifficultyChange={handleDifficultyChange}
           onNewGame={handleNewGame}
           onShowLeaderboard={() => setShowLeaderboard(true)}
           onShowHelp={() => setShowTutorial(true)}
@@ -488,12 +501,10 @@ export function CheckersGame() {
           onReturnToSetup={handleReturnToSetup}
           onUndo={undoMove}
           canUndo={canUndo}
-          gameMode={gameState.mode}
           gameStatus={gameState.status}
         />
-      </div>
+      </main>
 
-      {/* Victory Dialog */}
       {showVictoryDialog && (
         <VictoryDialog
           open={showVictoryDialog}
@@ -507,7 +518,6 @@ export function CheckersGame() {
         />
       )}
 
-      {/* Leaderboard Dialog */}
       {showLeaderboard && (
         <LeaderboardDialog
           open={showLeaderboard}
@@ -518,21 +528,21 @@ export function CheckersGame() {
         />
       )}
 
-      {/* Tutorial Dialog */}
       <Tutorial
         open={showTutorial}
-        onClose={() => setShowTutorial(false)}
+        onClose={() => {
+          setShowTutorial(false)
+          handleTutorialComplete()
+        }}
         onComplete={handleTutorialComplete}
       />
 
-      {/* Achievements Dialog */}
       <AchievementsDialog
         open={showAchievements}
         onClose={() => setShowAchievements(false)}
         achievements={achievements}
       />
 
-      {/* Game History Dialog */}
       <GameHistoryDialog
         open={showHistory}
         onClose={() => setShowHistory(false)}
@@ -540,7 +550,6 @@ export function CheckersGame() {
         onClearHistory={clearGameHistory}
       />
 
-      {/* Achievement Notification Toast */}
       <AchievementNotification
         achievement={recentlyUnlocked ? achievements[recentlyUnlocked] : null}
         onDismiss={clearRecentlyUnlocked}

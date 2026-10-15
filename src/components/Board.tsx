@@ -84,8 +84,9 @@ export const Board = React.memo(function Board({
   // Use intermediate board during multi-jump animations for accurate visual state
   const displayBoard = intermediateBoard || board
   return (
-    <div className="w-full max-w-[95vw] sm:max-w-2xl mx-auto px-1 sm:px-0">
-      {/* Wooden Frame */}
+    <div className="w-full max-w-[min(640px,calc(100dvw-2rem))]">
+      <div className="arcade-board">
+      {/* Slim wooden rim */}
       <div className="board-frame">
         {/* Inner Board with Shadow */}
         <div className="board-inner">
@@ -158,9 +159,10 @@ export const Board = React.memo(function Board({
           </div>
         </div>
       </div>
+      </div>
 
       {/* Column labels (a-h) */}
-      <div className="grid grid-cols-8 gap-0 mt-2 sm:mt-3 text-center text-xs sm:text-sm text-amber-900 font-semibold">
+      <div className="mt-2 grid grid-cols-8 gap-0 px-1.5 text-center text-xs sm:text-sm text-muted-foreground">
         {COLUMN_LABELS.map(label => (
           <div key={label}>{label}</div>
         ))}

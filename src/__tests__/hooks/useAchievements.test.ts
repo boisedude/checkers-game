@@ -984,7 +984,6 @@ describe('useAchievements', () => {
           id: 'first_victory',
           name: 'First Victory',
           description: 'Win your first game',
-          icon: '🏆',
           unlockedAt: -1, // Invalid negative timestamp
         },
       }

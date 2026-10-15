@@ -48,7 +48,7 @@ export const Piece = React.memo(function Piece({
         'w-full h-full rounded-full flex items-center justify-center cursor-pointer relative transition-transform duration-200',
         isRed ? 'piece-red' : 'piece-black',
         isKing && 'piece-king',
-        isSelected && 'piece-selected animate-selected-glow',
+        isSelected && 'piece-selected',
         animationClass,
       )}
       role="img"
@@ -65,7 +65,7 @@ export const Piece = React.memo(function Piece({
             fill="currentColor"
             className="w-5 h-5 sm:w-7 sm:h-7"
             style={{
-              filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.5))',
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.4))',
             }}
           >
             <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
@@ -78,7 +78,7 @@ export const Piece = React.memo(function Piece({
         <div
           className={cn(
             'absolute -bottom-1 sm:-bottom-1.5 left-1/2 -translate-x-1/2 w-[85%] h-[85%] rounded-full -z-10',
-            isRed ? 'bg-gradient-to-b from-red-800 to-red-950' : 'bg-gradient-to-b from-gray-800 to-black',
+            isRed ? 'bg-[#8e2a20]' : 'bg-[#121212]',
           )}
           style={{
             boxShadow: '0 3px 6px rgba(0,0,0,0.4)',
@@ -92,7 +92,7 @@ export const Piece = React.memo(function Piece({
         <div
           className={cn(
             'absolute -bottom-2 sm:-bottom-2.5 left-1/2 -translate-x-1/2 w-[75%] h-[75%] rounded-full -z-20',
-            isRed ? 'bg-gradient-to-b from-red-900 to-red-950' : 'bg-gradient-to-b from-gray-900 to-black',
+            isRed ? 'bg-[#6e1f17]' : 'bg-black',
           )}
           style={{
             boxShadow: '0 4px 8px rgba(0,0,0,0.5)',

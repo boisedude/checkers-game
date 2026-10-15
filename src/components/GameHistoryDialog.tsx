@@ -41,9 +41,9 @@ function formatDate(timestamp: number): string {
 
 function ResultBadge({ result }: { result: 'win' | 'loss' | 'draw' }) {
   const styles = {
-    win: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    loss: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-    draw: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    win: 'bg-primary text-primary-foreground',
+    loss: 'bg-secondary text-muted-foreground',
+    draw: 'bg-secondary text-foreground',
   }
 
   const labels = {
@@ -76,11 +76,11 @@ export const GameHistoryDialog = React.memo(function GameHistoryDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Game History</DialogTitle>
+          <DialogTitle>History</DialogTitle>
           <DialogDescription>
             {history.length > 0
               ? `${history.length} game${history.length === 1 ? '' : 's'} played`
-              : 'Your completed games will appear here'}
+              : 'Finished games appear here'}
           </DialogDescription>
         </DialogHeader>
 
@@ -88,20 +88,20 @@ export const GameHistoryDialog = React.memo(function GameHistoryDialog({
           {history.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
               <p className="text-sm">No games played yet.</p>
-              <p className="mt-1 text-xs">Complete a game to see it here!</p>
+              <p className="mt-1 text-xs">Finish a game to see it here.</p>
             </div>
           ) : (
             <div className="space-y-2">
               {history.map(record => (
                 <div
                   key={record.id}
-                  className="flex items-center justify-between rounded-lg bg-muted/50 p-3"
+                  className="flex items-center justify-between rounded-md border bg-card p-3"
                 >
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">
                         {record.mode === 'pvp'
-                          ? 'PvP'
+                          ? 'Two players'
                           : `vs ${DIFFICULTY_LABELS[record.difficulty] ?? record.difficulty}`}
                       </span>
                       <ResultBadge result={record.result} />
@@ -133,7 +133,7 @@ export const GameHistoryDialog = React.memo(function GameHistoryDialog({
                   size="sm"
                   variant="destructive"
                   onClick={handleClearHistory}
-                  className="h-8"
+                  className="h-11"
                 >
                   Confirm
                 </Button>
@@ -141,7 +141,7 @@ export const GameHistoryDialog = React.memo(function GameHistoryDialog({
                   size="sm"
                   variant="outline"
                   onClick={() => setShowClearConfirm(false)}
-                  className="h-8"
+                  className="h-11"
                 >
                   Cancel
                 </Button>
@@ -153,12 +153,12 @@ export const GameHistoryDialog = React.memo(function GameHistoryDialog({
                 variant="destructive"
                 onClick={() => setShowClearConfirm(true)}
                 size="sm"
-                className="w-full sm:w-auto"
+                className="h-11 w-full sm:w-auto"
                 disabled={history.length === 0}
               >
-                Clear History
+                Clear history
               </Button>
-              <Button onClick={onClose} variant="outline" className="w-full sm:w-auto">
+              <Button onClick={onClose} variant="outline" className="h-11 w-full sm:w-auto">
                 Close
               </Button>
             </>

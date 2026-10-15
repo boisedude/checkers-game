@@ -74,23 +74,19 @@ export const Cell = React.memo(function Cell({
   const woodClasses = isDark ? 'wood-dark' : 'wood-light'
 
   // Highlight and selection classes
-  const stateClasses = isHighlighted
-    ? 'cell-highlighted'
-    : isSelected
-      ? 'cell-selected'
-      : ''
+  const stateClasses = isHighlighted ? 'cell-highlighted' : ''
 
   // Last move indicator classes
   const lastMoveClasses =
     (lastMoveFrom || lastMoveTo) && !isSelected && !isHighlighted
-      ? 'ring-2 ring-inset ring-amber-400/40'
+      ? 'ring-2 ring-inset ring-primary/40'
       : ''
 
   // Cursor classes
   const cursorClasses = disabled
     ? 'pointer-events-none'
     : piece !== null || isHighlighted
-      ? 'cursor-pointer hover:brightness-110 active:brightness-95'
+      ? 'cursor-pointer hover:brightness-110'
       : ''
 
   // Generate accessible label for the cell
@@ -121,7 +117,7 @@ export const Cell = React.memo(function Cell({
     >
       {/* Highlight indicator for valid moves */}
       {isHighlighted && !piece && (
-        <div className="valid-move-indicator animate-valid-move-glow" />
+        <div className="valid-move-indicator" />
       )}
 
       {/* Piece */}
