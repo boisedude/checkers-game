@@ -33,7 +33,6 @@ import { useGameAudio } from '@/hooks/useGameAudio'
 import { useBackgroundMusic } from '@/hooks/useBackgroundMusic'
 import { useCharacterSelection, getInitialDifficulty } from '@/hooks/useCharacterSelection'
 import { useBentleyStats } from '@/hooks/useBentleyStats'
-import { recordPlayerBeatBentley, recordBentleyBeatPlayer } from '@shared/arcadeRecord'
 import { useAchievements } from '@/hooks/useAchievements'
 import type { AchievementContext } from '@/hooks/useAchievements'
 import { useGameHistory } from '@/hooks/useGameHistory'
@@ -189,7 +188,6 @@ export function CheckersGame() {
             // Track Bentley stats if playing on hard
             if (gameState.difficulty === 'hard') {
               recordLocalBentleyWin(margin, totalCaptures, isPerfect)
-              recordPlayerBeatBentley()
             }
           }
         } else if (gameState.winner === 2) {
@@ -203,7 +201,6 @@ export function CheckersGame() {
             // Track Bentley stats if playing on hard
             if (gameState.difficulty === 'hard') {
               recordLocalBentleyLoss(margin, totalCaptures)
-              recordBentleyBeatPlayer()
             }
           }
         }
