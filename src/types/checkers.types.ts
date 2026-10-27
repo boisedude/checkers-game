@@ -66,6 +66,7 @@ export interface UndoState {
   blackKings: number
   validMoves: ValidMove[]
   mustJump: boolean
+  movesWithoutCaptureOrPromotion?: number
 }
 
 /** Complete game state. Central data structure for the entire game. */

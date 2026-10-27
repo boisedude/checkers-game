@@ -800,37 +800,37 @@ describe('checkersRules', () => {
     })
   })
 
-  describe('40-move rule', () => {
-    it('should return draw when counter reaches 40', () => {
+  describe('40-move rule (counted in plies: 40 moves by each side)', () => {
+    it('should return draw when counter reaches 80 plies', () => {
       const board = createEmptyBoard()
       board[5][2] = { player: 1, type: 'king' }
       board[2][3] = { player: 2, type: 'king' }
 
-      const result = checkGameOver(board, 1, 40)
+      const result = checkGameOver(board, 1, 80)
 
       expect(result.isOver).toBe(true)
       expect(result.winner).toBeNull()
       expect(result.isDraw).toBe(true)
     })
 
-    it('should return normal result when counter is less than 40', () => {
+    it('should return normal result when counter is less than 80', () => {
       const board = createEmptyBoard()
       board[5][2] = { player: 1, type: 'king' }
       board[2][3] = { player: 2, type: 'king' }
 
-      const result = checkGameOver(board, 1, 39)
+      const result = checkGameOver(board, 1, 79)
 
       expect(result.isOver).toBe(false)
       expect(result.winner).toBeNull()
       expect(result.isDraw).toBe(false)
     })
 
-    it('should return draw when counter exceeds 40', () => {
+    it('should return draw when counter exceeds 80', () => {
       const board = createEmptyBoard()
       board[5][2] = { player: 1, type: 'king' }
       board[2][3] = { player: 2, type: 'king' }
 
-      const result = checkGameOver(board, 1, 50)
+      const result = checkGameOver(board, 1, 90)
 
       expect(result.isOver).toBe(true)
       expect(result.winner).toBeNull()

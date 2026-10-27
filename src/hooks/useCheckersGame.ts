@@ -229,6 +229,7 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
       animationAbortRef.current = abortController
 
       aiMoveTimeoutRef.current = setTimeout(async () => {
+        aiMoveTimeoutRef.current = null
         try {
           const aiMove = getAIMove(gameState.board, 2, gameState.difficulty)
 
@@ -269,9 +270,11 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     }
 
     return () => {
+      // The move has not started yet: unschedule it so the next run can reschedule.
       if (aiMoveTimeoutRef.current) {
         clearTimeout(aiMoveTimeoutRef.current)
         aiMoveTimeoutRef.current = null
+        aiMoveScheduledRef.current = false
       }
     }
   }, [
@@ -348,6 +351,7 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
                   blackKings: prevState.blackKings,
                   validMoves: prevState.validMoves,
                   mustJump: prevState.mustJump,
+                  movesWithoutCaptureOrPromotion: prevState.movesWithoutCaptureOrPromotion,
                 }
 
                 return {
@@ -431,10 +435,12 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
    * Changes difficulty level
    */
   const changeDifficulty = useCallback((newDifficulty: Difficulty) => {
-    setGameState(prevState => ({
-      ...prevState,
-      difficulty: newDifficulty,
-    }))
+    // The opponent is fixed once a game has begun; the page starts a new game instead.
+    setGameState(prevState =>
+      prevState.status === 'playing' && prevState.moveHistory.length > 0
+        ? prevState
+        : { ...prevState, difficulty: newDifficulty }
+    )
   }, [])
 
   /**
@@ -490,6 +496,9 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
         validMoves: undoState.validMoves,
         mustJump: undoState.mustJump,
         moveHistory: newMoveHistory,
+        positionHistory: prevState.positionHistory.slice(0, -movesToRemove),
+        movesWithoutCaptureOrPromotion:
+          undoState.movesWithoutCaptureOrPromotion ?? prevState.movesWithoutCaptureOrPromotion,
         undoState: null, // Clear undo state after using it (one undo per player move)
       }
     })

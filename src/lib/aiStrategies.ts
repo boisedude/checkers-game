@@ -136,10 +136,12 @@ function minimax(
   if (depth === 0 || gameOver.isOver) {
     if (gameOver.isOver) {
       // Big bonus/penalty for winning/losing
+      // Remaining depth breaks ties: win sooner, lose later. Without it a winning
+      // position can be shuffled forever because every winning line scores the same.
       if (gameOver.winner === player) {
-        return { score: SCORE.WIN, move: null }
+        return { score: SCORE.WIN + depth, move: null }
       } else if (gameOver.winner !== null) {
-        return { score: SCORE.LOSS, move: null }
+        return { score: SCORE.LOSS - depth, move: null }
       }
     }
     return { score: evaluateBoard(board, player, difficulty), move: null }
@@ -150,7 +152,7 @@ function minimax(
 
   if (validMoves.length === 0) {
     // No moves available - player loses
-    return { score: maximizingPlayer ? SCORE.LOSS : SCORE.WIN, move: null }
+    return { score: maximizingPlayer ? SCORE.LOSS - depth : SCORE.WIN + depth, move: null }
   }
 
   let bestMove: ValidMove | null = null

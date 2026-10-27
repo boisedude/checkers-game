@@ -8,8 +8,8 @@
 /** Number of pieces each player starts with */
 export const INITIAL_PIECE_COUNT = 12
 
-/** Moves without capture or promotion before a draw is declared */
-export const DRAW_MOVE_LIMIT = 40
+/** Plies (single moves, either side) without capture or promotion before a draw: 40 moves by each side */
+export const DRAW_MOVE_LIMIT = 80
 
 /** Number of times the same position must repeat for a draw */
 export const REPETITION_DRAW_COUNT = 3
