@@ -3,6 +3,10 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { GameControls } from '@/components/GameControls'
 
+function openMore() {
+  fireEvent.click(screen.getByRole('button', { name: 'More' }))
+}
+
 describe('GameControls', () => {
   const defaultProps = {
     onNewGame: vi.fn(),
@@ -33,23 +37,46 @@ describe('GameControls', () => {
     })
   })
 
-  describe('Stats button', () => {
-    it('renders Stats button', () => {
+  describe('More menu', () => {
+    it('keeps Stats in the More menu, not the row', () => {
       render(<GameControls {...defaultProps} />)
-      expect(screen.getByText('Stats')).toBeInTheDocument()
+      expect(screen.queryByText('Stats')).not.toBeInTheDocument()
+      openMore()
+      expect(screen.getByRole('menuitem', { name: 'Stats' })).toBeInTheDocument()
     })
 
-    it('calls onShowLeaderboard when Stats button clicked', () => {
+    it('calls onShowLeaderboard when Stats is chosen', () => {
       const onShowLeaderboard = vi.fn()
       render(<GameControls {...defaultProps} onShowLeaderboard={onShowLeaderboard} />)
 
-      fireEvent.click(screen.getByText('Stats'))
+      openMore()
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Stats' }))
       expect(onShowLeaderboard).toHaveBeenCalledTimes(1)
     })
 
-    it('disables Stats button when disabled prop is true', () => {
+    it('disables the More menu when disabled prop is true', () => {
       render(<GameControls {...defaultProps} disabled={true} />)
-      expect(screen.getByText('Stats')).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'More' })).toBeDisabled()
+    })
+
+    it('lists every other action in order', () => {
+      render(
+        <GameControls
+          {...defaultProps}
+          onShowHelp={vi.fn()}
+          onShowAchievements={vi.fn()}
+          onShowHistory={vi.fn()}
+          onReturnToSetup={vi.fn()}
+        />
+      )
+      openMore()
+      expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
+        'How to play',
+        'Stats',
+        'Achievements',
+        'Game history',
+        'Change mode',
+      ])
     })
   })
 
@@ -177,22 +204,25 @@ describe('GameControls', () => {
     })
   })
 
-  describe('Help button', () => {
-    it('renders Help button when onShowHelp is provided', () => {
+  describe('How to play', () => {
+    it('is in the More menu when onShowHelp is provided', () => {
       render(<GameControls {...defaultProps} onShowHelp={vi.fn()} />)
-      expect(screen.getByText('How to play')).toBeInTheDocument()
+      openMore()
+      expect(screen.getByRole('menuitem', { name: 'How to play' })).toBeInTheDocument()
     })
 
-    it('does not render Help button when onShowHelp is not provided', () => {
+    it('is absent when onShowHelp is not provided', () => {
       render(<GameControls {...defaultProps} />)
+      openMore()
       expect(screen.queryByText('How to play')).not.toBeInTheDocument()
     })
 
-    it('calls onShowHelp when Help button clicked', () => {
+    it('calls onShowHelp when chosen', () => {
       const onShowHelp = vi.fn()
       render(<GameControls {...defaultProps} onShowHelp={onShowHelp} />)
 
-      fireEvent.click(screen.getByText('How to play'))
+      openMore()
+      fireEvent.click(screen.getByRole('menuitem', { name: 'How to play' }))
       expect(onShowHelp).toHaveBeenCalledTimes(1)
     })
   })
@@ -210,8 +240,14 @@ describe('GameControls', () => {
       )
       expect(screen.getByText('New game')).toBeInTheDocument()
       expect(screen.getByText('Undo')).toBeInTheDocument()
-      expect(screen.getByText('Stats')).toBeInTheDocument()
-      expect(screen.getByText('How to play')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument()
+    })
+
+    it('shows Hint only when a hint handler is given', () => {
+      const { rerender } = render(<GameControls {...defaultProps} gameStatus="playing" />)
+      expect(screen.queryByText('Hint')).not.toBeInTheDocument()
+      rerender(<GameControls {...defaultProps} gameStatus="playing" onHint={vi.fn()} canHint={true} />)
+      expect(screen.getByText('Hint')).not.toBeDisabled()
     })
 
     it('renders correctly with a minimal control set', () => {
@@ -225,7 +261,7 @@ describe('GameControls', () => {
       )
       expect(screen.getByText('New game')).toBeInTheDocument()
       expect(screen.getByText('Undo')).toBeInTheDocument()
-      expect(screen.getByText('Stats')).toBeInTheDocument()
+      expect(screen.getAllByRole('button')).toHaveLength(3)
     })
   })
 

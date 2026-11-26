@@ -13,186 +13,125 @@ describe('Piece', () => {
   describe('rendering', () => {
     it('renders red piece with correct ARIA label', () => {
       render(<Piece piece={redRegular} isSelected={false} />)
-      const piece = screen.getByRole('img')
-      expect(piece).toHaveAttribute('aria-label', 'Red piece')
+      expect(screen.getByRole('img')).toHaveAttribute('aria-label', 'Red piece')
     })
 
     it('renders black piece with correct ARIA label', () => {
       render(<Piece piece={blackRegular} isSelected={false} />)
-      const piece = screen.getByRole('img')
-      expect(piece).toHaveAttribute('aria-label', 'Black piece')
+      expect(screen.getByRole('img')).toHaveAttribute('aria-label', 'Black piece')
     })
 
     it('renders red king with correct ARIA label', () => {
       render(<Piece piece={redKing} isSelected={false} />)
-      const piece = screen.getByRole('img')
-      expect(piece).toHaveAttribute('aria-label', 'Red king')
+      expect(screen.getByRole('img')).toHaveAttribute('aria-label', 'Red king')
     })
 
     it('renders black king with correct ARIA label', () => {
       render(<Piece piece={blackKing} isSelected={false} />)
-      const piece = screen.getByRole('img')
-      expect(piece).toHaveAttribute('aria-label', 'Black king')
+      expect(screen.getByRole('img')).toHaveAttribute('aria-label', 'Black king')
+    })
+
+    it('is drawn as an SVG, not a glyph', () => {
+      const { container } = render(<Piece piece={redRegular} />)
+      expect(container.firstElementChild?.tagName.toLowerCase()).toBe('svg')
+      expect(container.textContent).toBe('')
+    })
+
+    it('gives each piece its own gradient ids', () => {
+      const { container } = render(
+        <>
+          <Piece piece={redRegular} />
+          <Piece piece={blackRegular} />
+        </>
+      )
+      const ids = [...container.querySelectorAll('radialGradient')].map(g => g.id)
+      expect(new Set(ids).size).toBe(ids.length)
     })
   })
 
-  describe('king crown', () => {
-    it('shows king crown SVG when piece type is king', () => {
+  describe('king', () => {
+    it('shows an inlaid crown on a king', () => {
       const { container } = render(<Piece piece={redKing} isSelected={false} />)
-      // King pieces have an SVG crown element
-      const svgElements = container.querySelectorAll('svg')
-      expect(svgElements.length).toBeGreaterThan(0)
+      expect(container.querySelector('.ck-crown')).not.toBeNull()
     })
 
-    it('does not show king crown for regular pieces', () => {
+    it('does not show a crown on a man', () => {
       const { container } = render(<Piece piece={redRegular} isSelected={false} />)
-      const svgElements = container.querySelectorAll('svg')
-      expect(svgElements.length).toBe(0)
+      expect(container.querySelector('.ck-crown')).toBeNull()
     })
 
-    it('shows stacked piece layers for king pieces', () => {
+    it('stacks a second disc under a king', () => {
       const { container } = render(<Piece piece={blackKing} isSelected={false} />)
-      // King pieces have extra div layers for the stacked effect (aria-hidden="true")
-      const hiddenDivs = container.querySelectorAll('[aria-hidden="true"]')
-      // Crown div + 2 stacked layers = 3 aria-hidden elements
-      expect(hiddenDivs.length).toBe(3)
+      expect(container.querySelector('.ck-under')).not.toBeNull()
+      expect(container.firstElementChild).toHaveAttribute('data-king', 'true')
     })
 
-    it('does not show stacked layers for regular pieces', () => {
+    it('has no second disc under a man', () => {
       const { container } = render(<Piece piece={redRegular} isSelected={false} />)
-      const hiddenDivs = container.querySelectorAll('[aria-hidden="true"]')
-      expect(hiddenDivs.length).toBe(0)
+      expect(container.querySelector('.ck-under')).toBeNull()
+      expect(container.firstElementChild).not.toHaveAttribute('data-king')
     })
   })
 
   describe('selected state', () => {
-    it('applies selected classes when isSelected is true', () => {
-      const { container } = render(<Piece piece={redRegular} isSelected={true} />)
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).toContain('piece-selected')
-    })
-
-    it('does not apply selected classes when isSelected is false', () => {
-      const { container } = render(<Piece piece={redRegular} isSelected={false} />)
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).not.toContain('piece-selected')
-    })
-
     it('includes selected status in ARIA label', () => {
       render(<Piece piece={redRegular} isSelected={true} />)
-      const piece = screen.getByRole('img')
-      expect(piece).toHaveAttribute('aria-label', 'Red piece, selected')
+      expect(screen.getByRole('img')).toHaveAttribute('aria-label', 'Red piece, selected')
     })
 
     it('does not include selected status in ARIA label when not selected', () => {
       render(<Piece piece={redRegular} isSelected={false} />)
-      const piece = screen.getByRole('img')
-      expect(piece).toHaveAttribute('aria-label', 'Red piece')
+      expect(screen.getByRole('img')).toHaveAttribute('aria-label', 'Red piece')
     })
   })
 
-  describe('capture animation', () => {
-    it('applies capture animation class when isBeingCaptured is true', () => {
-      const { container } = render(
-        <Piece piece={redRegular} isSelected={false} isBeingCaptured={true} />
-      )
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).toContain('animate-piece-capture')
+  describe('ring', () => {
+    it('draws a brass ring when asked', () => {
+      const { container } = render(<Piece piece={redRegular} ring={true} />)
+      expect(container.querySelector('.ck-ring')).not.toBeNull()
     })
 
-    it('does not apply capture animation class when isBeingCaptured is false', () => {
-      const { container } = render(
-        <Piece piece={redRegular} isSelected={false} isBeingCaptured={false} />
-      )
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).not.toContain('animate-piece-capture')
+    it('draws no ring by default', () => {
+      const { container } = render(<Piece piece={redRegular} />)
+      expect(container.querySelector('.ck-ring')).toBeNull()
     })
   })
 
-  describe('promotion animation', () => {
-    it('applies promotion animation class when isBeingPromoted is true', () => {
-      const { container } = render(
-        <Piece piece={redKing} isSelected={false} isBeingPromoted={true} />
-      )
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).toContain('animate-king-promotion')
+  describe('crowning', () => {
+    it('settles a newly crowned king after the given delay', () => {
+      const { container } = render(<Piece piece={redKing} crownDelayMs={240} />)
+      const svg = container.firstElementChild as SVGElement
+      expect(svg.getAttribute('class')).toContain('ck-crowning')
+      expect(svg.style.getPropertyValue('--crown-delay')).toBe('240ms')
     })
 
-    it('applies crown appear animation when isBeingPromoted on king', () => {
-      const { container } = render(
-        <Piece piece={redKing} isSelected={false} isBeingPromoted={true} />
-      )
-      const crownDiv = container.querySelector('.king-crown')
-      expect(crownDiv).not.toBeNull()
-      expect(crownDiv!.className).toContain('animate-crown-appear')
+    it('does not animate a king that was already crowned', () => {
+      const { container } = render(<Piece piece={redKing} />)
+      expect(container.firstElementChild?.getAttribute('class')).not.toContain('ck-crowning')
     })
 
-    it('does not apply promotion animation class when isBeingPromoted is false', () => {
-      const { container } = render(
-        <Piece piece={redKing} isSelected={false} isBeingPromoted={false} />
-      )
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).not.toContain('animate-king-promotion')
+    it('ignores a crown delay on a man', () => {
+      const { container } = render(<Piece piece={redRegular} crownDelayMs={240} />)
+      expect(container.firstElementChild?.getAttribute('class')).not.toContain('ck-crowning')
     })
   })
 
-  describe('animation priority', () => {
-    it('capture animation takes priority over promotion animation', () => {
-      const { container } = render(
-        <Piece
-          piece={redKing}
-          isSelected={false}
-          isBeingCaptured={true}
-          isBeingPromoted={true}
-        />
-      )
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).toContain('animate-piece-capture')
-      expect(pieceDiv.className).not.toContain('animate-king-promotion')
+  describe('player colours', () => {
+    it('marks player 1 pieces', () => {
+      const { container } = render(<Piece piece={redRegular} />)
+      expect(container.firstElementChild).toHaveAttribute('data-player', '1')
     })
 
-    it('applies slide animation class when isAnimating without jump', () => {
-      const { container } = render(
-        <Piece piece={redRegular} isSelected={false} isAnimating={true} isJumpAnimation={false} />
-      )
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).toContain('animate-piece-slide')
+    it('marks player 2 pieces', () => {
+      const { container } = render(<Piece piece={blackRegular} />)
+      expect(container.firstElementChild).toHaveAttribute('data-player', '2')
     })
 
-    it('applies jump animation class when isAnimating with jump', () => {
-      const { container } = render(
-        <Piece piece={redRegular} isSelected={false} isAnimating={true} isJumpAnimation={true} />
-      )
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).toContain('animate-piece-jump')
-    })
-  })
-
-  describe('player color classes', () => {
-    it('applies piece-red class for player 1', () => {
-      const { container } = render(<Piece piece={redRegular} isSelected={false} />)
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).toContain('piece-red')
-      expect(pieceDiv.className).not.toContain('piece-black')
-    })
-
-    it('applies piece-black class for player 2', () => {
-      const { container } = render(<Piece piece={blackRegular} isSelected={false} />)
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).toContain('piece-black')
-      expect(pieceDiv.className).not.toContain('piece-red')
-    })
-
-    it('applies piece-king class for king pieces', () => {
-      const { container } = render(<Piece piece={redKing} isSelected={false} />)
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).toContain('piece-king')
-    })
-
-    it('does not apply piece-king class for regular pieces', () => {
-      const { container } = render(<Piece piece={redRegular} isSelected={false} />)
-      const pieceDiv = container.firstElementChild as HTMLElement
-      expect(pieceDiv.className).not.toContain('piece-king')
+    it('uses different face colours for the two sides', () => {
+      const { container: red } = render(<Piece piece={redRegular} />)
+      const { container: black } = render(<Piece piece={blackRegular} />)
+      const stop = (c: HTMLElement) => c.querySelector('radialGradient stop')?.getAttribute('stop-color')
+      expect(stop(red)).not.toBe(stop(black))
     })
   })
 })

@@ -17,7 +17,7 @@ A classic Checkers (Draughts) game with personality-driven AI opponents. Challen
   - **Bentley - The Mastermind** (Hard): The arcade champion, a deep-searching engine that punishes loose moves
 - **Jumping Mechanics** - Capture opponent pieces by jumping over them, with multi-jump support
 - **King Pieces** - Regular pieces become kings when reaching the opposite end, gaining backward movement
-- **Smooth Animations** - Beautiful piece movement animations with CSS transforms
+- **Board and pieces** - A maple and walnut board with turned discs drawn in SVG; a move slides, a jump hops over the piece it takes, and men can be tapped or dragged
 - **Comprehensive Stats Tracking** - Win/loss records, win streaks, largest margins, and more
 - **Web Audio API Sound Effects** - Dynamic sounds for piece placement, captures, victory, and defeat
 - **Victory Dialogs with Personality** - Character-specific catchphrases based on game outcome

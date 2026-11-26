@@ -6,9 +6,10 @@
  * HSL-triplet convention the games already map in their @theme blocks, so
  * every shadcn button, dialog, select and card picks the palette up as is.
  *
- * The table is dark slate, the same slate as mcooper.com. Boards sit on it
- * as physical objects in their own materials (wood, felt, stone); the chrome
- * around them stays quiet. Encode Sans is the only typeface.
+ * The table is green card-table felt under one lamp. Boards sit on it as
+ * physical objects in their own materials (wood, stone, lacquer); the chrome
+ * around them stays quiet, with brass as the only accent. Encode Sans is the
+ * only typeface.
  */
 
 /*
@@ -26,46 +27,59 @@
 
 @layer base {
 :root {
-  /* Snake River slate table, fog text, sagebrush accent */
-  --background: 206 37% 12%;
-  --foreground: 144 11% 91%;
-  --card: 204 33% 16%;
-  --card-foreground: 144 11% 91%;
-  --popover: 204 33% 16%;
-  --popover-foreground: 144 11% 91%;
-  --primary: 87 31% 70%;
-  --primary-foreground: 206 37% 12%;
-  --secondary: 203 32% 19%;
-  --secondary-foreground: 144 11% 91%;
-  --muted: 205 32% 18%;
-  --muted-foreground: 197 14% 65%;
-  --accent: 203 31% 20%;
-  --accent-foreground: 144 11% 91%;
-  --destructive: 5 82% 72%;
-  --destructive-foreground: 206 37% 12%;
-  --border: 204 28% 23%;
-  --input: 204 28% 23%;
-  --ring: 87 31% 70%;
+  /* Card-table felt, ivory text, brass accent */
+  --background: 158 44% 13%;
+  --foreground: 42 52% 90%;
+  --card: 158 40% 10%;
+  --card-foreground: 42 52% 90%;
+  --popover: 158 40% 10%;
+  --popover-foreground: 42 52% 90%;
+  --primary: 41 64% 57%;
+  --primary-foreground: 158 45% 9%;
+  --secondary: 157 36% 19%;
+  --secondary-foreground: 42 52% 90%;
+  --muted: 158 38% 17%;
+  --muted-foreground: 80 16% 70%;
+  --accent: 157 34% 21%;
+  --accent-foreground: 42 52% 90%;
+  --destructive: 2 82% 70%;
+  --destructive-foreground: 158 45% 9%;
+  --border: 156 28% 25%;
+  --input: 156 26% 30%;
+  --ring: 41 64% 57%;
   --radius: 0.375rem;
+
+  /* The felt: one pool of lamp light over the middle of the table, darker at the rails. */
+  --arcade-felt:
+    radial-gradient(120% 85% at 50% 22%, hsl(156 46% 20%) 0%, hsl(158 46% 13%) 55%, hsl(160 50% 8%) 100%);
 
   /* Opponent ring colours. Only the opponent chip and the avatar ring use them. */
   --arcade-bella: #f59e0b;
   --arcade-coop: #3b82f6;
   --arcade-bentley: #a855f7;
 
+  /*
+   * One column: the score strip, the board and the controls share a width.
+   * The board is the largest square that fits the viewport once the top bar,
+   * score strip and one row of controls have their room (about 14.5rem), so
+   * it fills a laptop screen and never needs scrolling on a phone.
+   */
+  --arcade-col: clamp(17.5rem, min(calc(100dvw - 2rem), calc(100dvh - 14.5rem)), 47.5rem);
+
   /* Board shadow: one soft drop so the board reads as an object on the table */
-  --arcade-board-shadow: 0 24px 48px -24px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --arcade-board-shadow: 0 28px 50px -22px rgba(0, 0, 0, 0.75), 0 3px 8px rgba(0, 0, 0, 0.4);
 
   color-scheme: dark;
 }
 
 html {
-  background: hsl(var(--background));
+  background: hsl(160 50% 8%);
 }
 
 body {
   margin: 0;
-  background: hsl(var(--background));
+  min-height: 100dvh;
+  background: var(--arcade-felt) fixed;
   color: hsl(var(--foreground));
   font-family: "Encode Sans", ui-sans-serif, system-ui, sans-serif;
   font-variation-settings: "wdth" 106;
@@ -97,6 +111,7 @@ body {
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid hsl(var(--border));
+  background: hsl(160 48% 9% / 0.55);
 }
 
 .arcade-stage {
@@ -115,10 +130,15 @@ body {
   }
 }
 
+/* Boards that are much wider than tall (mancala) take the width instead. */
+.arcade-stage[data-shape="wide"] {
+  --arcade-col: min(calc(100dvw - 2rem), 57.5rem);
+}
+
 /* The board itself: a single max width, one shadow, no glow, no gradient halo */
 .arcade-board {
-  width: 100%;
-  max-width: min(640px, calc(100dvw - 2rem));
+  width: var(--arcade-col);
+  max-width: 100%;
   box-shadow: var(--arcade-board-shadow);
   border-radius: 0.5rem;
 }
@@ -156,8 +176,8 @@ body {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  width: 100%;
-  max-width: min(640px, calc(100dvw - 2rem));
+  width: var(--arcade-col);
+  max-width: 100%;
   gap: 0.75rem;
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
@@ -199,8 +219,148 @@ body {
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
+  width: var(--arcade-col);
+  max-width: 100%;
+}
+
+/*
+ * A player's side of the score strip when it carries a portrait: the opponent's
+ * avatar in a ring of their colour, the count and the name beside it.
+ */
+.arcade-player {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.arcade-score > .arcade-player:last-child {
+  flex-direction: row-reverse;
+}
+
+.arcade-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  border-radius: 999px;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px var(--arcade-ring, hsl(var(--border)));
+}
+
+.arcade-avatar[data-character="bella"] { --arcade-ring: var(--arcade-bella); }
+.arcade-avatar[data-character="coop"] { --arcade-ring: var(--arcade-coop); }
+.arcade-avatar[data-character="bentley"] { --arcade-ring: var(--arcade-bentley); }
+
+/* While the opponent thinks, three dots step through the turn pill. */
+.arcade-turn[data-active="opponent"]::after {
+  content: "";
+  display: inline-block;
+  width: 1.1em;
+  height: 0.3em;
+  margin-left: 0.4em;
+  vertical-align: 0.15em;
+  background: radial-gradient(circle, currentColor 0.14em, transparent 0.16em) 0 50% / 0.4em 100% repeat-x;
+  animation: arcade-thinking 1.2s steps(4, jump-none) infinite;
+}
+
+@keyframes arcade-thinking {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* Hint: a static brass ring between two dark keylines, so it reads on any board colour. */
+.arcade-hint {
+  box-shadow:
+    inset 0 0 0 2px hsl(160 50% 8%),
+    inset 0 0 0 6px hsl(var(--primary)),
+    inset 0 0 0 8px hsl(160 50% 8%);
+}
+
+/* More menu: the lesser-used actions, so the control row stays one line. */
+.arcade-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.arcade-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 2.75rem;
+  padding: 0 1rem 0 1.25rem;
+  border: 1px solid hsl(var(--input));
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.arcade-menu-trigger:hover,
+.arcade-menu-trigger[aria-expanded="true"] {
+  background: hsl(var(--accent));
+}
+
+.arcade-menu-list {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.375rem);
+  z-index: 40;
+  min-width: 12rem;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--popover));
+  box-shadow: 0 16px 32px -12px rgba(0, 0, 0, 0.6);
+}
+
+.arcade-menu-item {
+  display: flex;
+  align-items: center;
   width: 100%;
-  max-width: min(640px, calc(100dvw - 2rem));
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: none;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.arcade-menu-item:hover,
+.arcade-menu-item:focus-visible {
+  background: hsl(var(--accent));
+  outline: none;
+}
+
+.arcade-menu-item[data-destructive="true"] {
+  color: hsl(var(--destructive));
+}
+
+.arcade-menu-item:disabled {
+  color: hsl(var(--muted-foreground));
+  cursor: default;
+  background: none;
+}
+
+/* Phones: tighter padding keeps New game, Undo, Hint and More on one line. */
+@media (max-width: 26rem) {
+  .arcade-controls { gap: 0.375rem; }
+  .arcade-menu-trigger { padding: 0 0.625rem 0 0.875rem; }
+}
+
+.arcade-menu-rule {
+  height: 1px;
+  margin: 0.25rem 0;
+  background: hsl(var(--border));
 }
 
 }

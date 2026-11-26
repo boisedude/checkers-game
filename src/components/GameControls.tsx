@@ -1,13 +1,13 @@
 /**
  * Game Controls Component
  *
- * One primary button (New game), outline buttons for Undo, Hint (games against a
- * character), Stats and How to play, and a quiet ghost row for Achievements, History
- * and Change mode. The page leaves How to play to the top bar's help button.
+ * One row: New game (the only primary button), Undo, Hint (against a character),
+ * and a More menu that holds everything else.
  */
 
 import React from 'react'
 import { Button } from './ui/button'
+import { MoreMenu } from '@shared/MoreMenu'
 import type { GameStatus } from '@/types/checkers.types'
 
 interface GameControlsProps {
@@ -41,66 +41,48 @@ export const GameControls = React.memo(function GameControls({
   disabled = false,
   gameStatus = 'playing',
 }: GameControlsProps) {
+  const playing = gameStatus === 'playing'
   return (
-    <div className="flex w-full flex-col items-center gap-2">
-      <div className="arcade-controls">
-        <Button onClick={onNewGame} disabled={disabled} className="h-11 px-3 sm:px-5">
-          New game
+    <div className="arcade-controls">
+      <Button onClick={onNewGame} disabled={disabled} className="h-11 px-3.5 sm:px-5">
+        New game
+      </Button>
+
+      {onUndo && playing && (
+        <Button
+          onClick={onUndo}
+          disabled={disabled || !canUndo}
+          variant="outline"
+          className="h-11 px-3.5 sm:px-5"
+          aria-label="Undo last move (U)"
+          title="Undo (U)"
+        >
+          Undo
         </Button>
+      )}
 
-        {onUndo && gameStatus === 'playing' && (
-          <Button
-            onClick={onUndo}
-            disabled={disabled || !canUndo}
-            variant="outline"
-            className="h-11 px-3 sm:px-5"
-            aria-label="Undo last move (U)"
-            title="Undo (U)"
-          >
-            Undo
-          </Button>
-        )}
-
-        {onHint && gameStatus === 'playing' && (
-          <Button
-            onClick={onHint}
-            disabled={disabled || !canHint || hintPending}
-            variant="outline"
-            className="h-11 px-3 sm:px-5"
-            aria-label="Hint: show a good move"
-          >
-            Hint
-          </Button>
-        )}
-
-        <Button onClick={onShowLeaderboard} disabled={disabled} variant="outline" className="h-11 px-3 sm:px-5">
-          Stats
+      {onHint && playing && (
+        <Button
+          onClick={onHint}
+          disabled={disabled || !canHint || hintPending}
+          variant="outline"
+          className="h-11 px-3.5 sm:px-5"
+          title="Show a suggested move (H)"
+        >
+          Hint
         </Button>
+      )}
 
-        {onShowHelp && (
-          <Button onClick={onShowHelp} disabled={disabled} variant="outline" className="h-11 px-3 sm:px-5">
-            How to play
-          </Button>
-        )}
-      </div>
-
-      <div className="arcade-controls">
-        {onShowAchievements && (
-          <Button onClick={onShowAchievements} disabled={disabled} variant="ghost" className="h-11">
-            Achievements
-          </Button>
-        )}
-        {onShowHistory && (
-          <Button onClick={onShowHistory} disabled={disabled} variant="ghost" className="h-11">
-            History
-          </Button>
-        )}
-        {onReturnToSetup && (
-          <Button onClick={onReturnToSetup} disabled={disabled} variant="ghost" className="h-11">
-            Change mode
-          </Button>
-        )}
-      </div>
+      <MoreMenu
+        disabled={disabled}
+        items={[
+          onShowHelp && { label: 'How to play', onSelect: onShowHelp },
+          { label: 'Stats', onSelect: onShowLeaderboard },
+          onShowAchievements && { label: 'Achievements', onSelect: onShowAchievements },
+          onShowHistory && { label: 'Game history', onSelect: onShowHistory },
+          onReturnToSetup && { label: 'Change mode', onSelect: onReturnToSetup, separated: true },
+        ]}
+      />
     </div>
   )
 })

@@ -27,101 +27,6 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-
-  /* Custom animations: piece movement only */
-  --animate-piece-slide: piece-slide 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --animate-piece-jump: piece-jump 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  --animate-piece-capture: piece-capture 0.4s ease-out forwards;
-  --animate-king-promotion: king-promotion 0.8s ease-out;
-  --animate-crown-appear: crown-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
-
-  /* Smooth piece sliding animation */
-  @keyframes piece-slide {
-    0% {
-      transform: translate(var(--slide-from-x, 0), var(--slide-from-y, 0));
-    }
-    100% {
-      transform: translate(0, 0);
-    }
-  }
-
-  /* Satisfying jump animation for captures */
-  @keyframes piece-jump {
-    0% {
-      transform: translate(var(--slide-from-x, 0), var(--slide-from-y, 0)) scale(1);
-    }
-    35% {
-      transform: translate(calc(var(--slide-from-x, 0) * 0.5), calc(var(--slide-from-y, 0) * 0.5 - 30px)) scale(1.15);
-    }
-    70% {
-      transform: translate(0, -10px) scale(1.1);
-    }
-    85% {
-      transform: translate(0, 3px) scale(0.95);
-    }
-    100% {
-      transform: translate(0, 0) scale(1);
-    }
-  }
-
-  /* Captured piece fading/flying off */
-  @keyframes piece-capture {
-    0% {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-    30% {
-      opacity: 0.8;
-      transform: scale(1.2) translateY(-5px);
-    }
-    100% {
-      opacity: 0;
-      transform: scale(0.3) translateY(50px) rotate(180deg);
-    }
-  }
-
-  /* King promotion celebration */
-  @keyframes king-promotion {
-    0% {
-      transform: scale(1);
-      filter: brightness(1);
-    }
-    25% {
-      transform: scale(1.3);
-      filter: brightness(1.5);
-    }
-    50% {
-      transform: scale(1.2);
-      filter: brightness(1.3);
-    }
-    75% {
-      transform: scale(1.15);
-      filter: brightness(1.2);
-    }
-    100% {
-      transform: scale(1);
-      filter: brightness(1);
-    }
-  }
-
-  /* Crown appearing animation */
-  @keyframes crown-appear {
-    0% {
-      opacity: 0;
-      transform: scale(0) translateY(20px) rotate(-180deg);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1.3) translateY(-5px) rotate(10deg);
-    }
-    75% {
-      transform: scale(1.1) translateY(2px) rotate(-5deg);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1) translateY(0) rotate(0deg);
-    }
-  }
 }
 
 @layer base {
@@ -130,134 +35,213 @@
   }
 }
 
-@layer utilities {
-  .animate-piece-slide {
-    animation: piece-slide 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  }
-
-  .animate-piece-jump {
-    animation: piece-jump 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  }
-
-  .animate-piece-capture {
-    animation: piece-capture 0.4s ease-out forwards;
-  }
-
-  .animate-king-promotion {
-    animation: king-promotion 0.8s ease-out;
-  }
-
-  .animate-crown-appear {
-    animation: crown-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
-  }
+/* The shared column leaves 14.5rem for the chrome; the stage padding needs a little
+   more here so the whole game fits a 900 px tall laptop screen without scrolling. */
+.arcade-stage {
+  --arcade-col: clamp(17.5rem, min(calc(100dvw - 2rem), calc(100dvh - 16.25rem)), 47.5rem);
 }
 
-/* ================================
-   Board: matte wood, flat pieces
-   ================================ */
+/* ================================================================
+   Board: maple and walnut in a dark walnut frame, all matte.
+   Play happens on the dark squares only, so the walnut is the stage
+   (richer, with grain) and the maple stays quiet. Everything inside
+   the frame is sized in % or fr so it scales with --arcade-col.
+   ================================================================ */
 
-.wood-light {
-  background: #d8bd8f;
+.ck-frame {
+  /* A length, not a %: padding % would follow the stage width, not the board. */
+  --ck-rim: calc(var(--arcade-col) * 0.046);
   position: relative;
-}
-
-.wood-dark {
-  background: #6b4a38;
-  position: relative;
-}
-
-/* Slim flat rim, no bevels or inner frames */
-.board-frame {
-  background: #4a3327;
-  padding: 6px;
+  aspect-ratio: 1;
+  padding: var(--ck-rim);
   border-radius: 0.5rem;
-}
-
-.board-inner {
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-/* Pieces: matte discs with a soft top light, no gloss spot */
-.piece-red {
   background:
-    radial-gradient(ellipse 90% 70% at 35% 25%, rgba(255, 255, 255, 0.10) 0%, transparent 60%),
-    #c0392b;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
-  border: 2px solid #8e2a20;
+    linear-gradient(160deg, rgba(255, 255, 255, 0.05), transparent 40%),
+    repeating-linear-gradient(97deg, rgba(0, 0, 0, 0.07) 0 2px, transparent 2px 9px),
+    linear-gradient(145deg, #4a2d19, #2f1c0e);
+  box-shadow:
+    var(--arcade-board-shadow),
+    inset 0 1px 0 rgba(255, 230, 190, 0.12),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.35);
 }
 
-.piece-black {
-  background:
-    radial-gradient(ellipse 90% 70% at 35% 25%, rgba(255, 255, 255, 0.07) 0%, transparent 60%),
-    #2b2b2b;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
-  border: 2px solid #121212;
-}
-
-/* King stacked look */
-.piece-king {
-  position: relative;
-}
-
-.piece-king::before {
-  content: '';
+.ck-ranks,
+.ck-files {
   position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  height: 8px;
-  border-radius: 50%;
-  z-index: -1;
+  display: grid;
+  color: #dcc39b;
+  opacity: 0.8;
+  font-size: clamp(0.625rem, calc(var(--arcade-col) * 0.021), 0.95rem);
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  align-items: center;
+  user-select: none;
 }
 
-.piece-red.piece-king::before {
-  background: #8e2a20;
+.ck-ranks {
+  left: 0;
+  top: var(--ck-rim);
+  bottom: var(--ck-rim);
+  width: var(--ck-rim);
+  grid-template-rows: repeat(8, 1fr);
 }
 
-.piece-black.piece-king::before {
-  background: #121212;
+.ck-files {
+  bottom: 0;
+  left: var(--ck-rim);
+  right: var(--ck-rim);
+  height: var(--ck-rim);
+  grid-template-columns: repeat(8, 1fr);
 }
 
-.king-crown {
+.ck-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  overflow: hidden;
+  /* Hairline between the frame and the playing surface */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(255, 225, 180, 0.08);
+  /* Dragging a man must not scroll the page. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ck-cell {
   position: relative;
-  z-index: 10;
-  color: #e6d3a0;
+  min-width: 0;
+  min-height: 0;
 }
 
-/* Selected piece: sagebrush ring */
-.piece-selected {
-  transform: scale(1.06);
-  z-index: 20;
-  box-shadow: 0 0 0 3px hsl(var(--primary)), 0 2px 4px rgba(0, 0, 0, 0.35);
+.ck-cell:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 3px hsl(var(--ring));
 }
 
-/* Valid destination: a static sagebrush dot */
+/* Maple: quiet, nearly flat */
+.ck-light {
+  background: linear-gradient(135deg, #ddcaa6, #d3bd95);
+}
+
+/* Walnut: the stage. Warmer, a soft pool of light and a fine grain. */
+.ck-dark {
+  background:
+    repeating-linear-gradient(102deg, rgba(255, 220, 170, 0.035) 0 1px, transparent 1px 6px),
+    radial-gradient(120% 120% at 35% 30%, #80543a 0%, #6a4229 55%, #57341f 100%);
+  box-shadow: inset 0 0 0 1px rgba(30, 14, 4, 0.25);
+}
+
+/* Last move: a brass wash on every square of its path */
+.ck-last::before,
+.ck-selected::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: hsl(var(--primary) / 0.36);
+  pointer-events: none;
+}
+
+/* Selected man: a stronger brass wash */
+.ck-selected::before {
+  background: hsl(var(--primary) / 0.6);
+}
+
+/* Where the selected man can land: a dark translucent dot */
 .valid-move-indicator {
   position: absolute;
+  left: 35%;
+  top: 35%;
   width: 30%;
   height: 30%;
   border-radius: 50%;
-  background: hsl(var(--primary));
-  opacity: 0.9;
+  background: rgba(18, 9, 3, 0.5);
+  box-shadow: 0 0 0 1px rgba(255, 228, 190, 0.14);
+  pointer-events: none;
 }
 
-.cell-highlighted::after {
-  content: '';
+/* Hint ring sits above the man so it stays visible on small boards */
+.ck-hint {
   position: absolute;
   inset: 0;
-  border: 2px solid hsl(var(--primary) / 0.6);
+  z-index: 3;
   pointer-events: none;
 }
 
-/* Hint: a static sagebrush ring on the squares of the suggested move */
-.cell-hint::before {
-  content: '';
+/* Men */
+.ck-slot {
   position: absolute;
-  inset: 3px;
-  border: 4px solid hsl(var(--primary));
-  border-radius: 4px;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ck-travelling {
+  z-index: 6;
+}
+
+.ck-piece {
+  display: block;
+  width: 92%;
+  height: 92%;
+  overflow: visible;
+}
+
+/* A jumped man fades as the mover passes over it */
+.ck-captured {
+  z-index: 2;
+  animation: ck-captured 180ms ease-out both;
   pointer-events: none;
-  z-index: 15;
+}
+
+@keyframes ck-captured {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.88); }
+}
+
+/* Crowning: the man rises onto its second disc and the crown is set in, once */
+.ck-crowning .ck-top {
+  animation: ck-rise 260ms cubic-bezier(0.2, 0.7, 0.3, 1) var(--crown-delay, 0ms) both;
+}
+
+.ck-crowning .ck-under {
+  animation: ck-fade-in 160ms ease-out var(--crown-delay, 0ms) both;
+}
+
+.ck-crowning .ck-crown {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ck-crown-in 260ms cubic-bezier(0.2, 0.7, 0.3, 1) var(--crown-delay, 0ms) both;
+}
+
+@keyframes ck-rise {
+  from { transform: translateY(5px); }
+  to { transform: translateY(0); }
+}
+
+@keyframes ck-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ck-crown-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* The man in the hand while dragging */
+.ck-drag-piece {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: scale(1.12);
+  filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.4));
 }

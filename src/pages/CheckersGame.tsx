@@ -27,6 +27,14 @@ import { AchievementsDialog } from '@/components/AchievementsDialog'
 import { GameHistoryDialog } from '@/components/GameHistoryDialog'
 import { OpponentChip } from '@/components/OpponentChip'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useCheckersGame } from '@/hooks/useCheckersGame'
 import { useLeaderboard } from '@/hooks/useLeaderboard'
 import { useGameAudio } from '@/hooks/useGameAudio'
@@ -36,6 +44,7 @@ import { useBentleyStats } from '@/hooks/useBentleyStats'
 import { useAchievements } from '@/hooks/useAchievements'
 import type { AchievementContext } from '@/hooks/useAchievements'
 import { useGameHistory } from '@/hooks/useGameHistory'
+import type { Difficulty, Position } from '@/types/checkers.types'
 import { ArrowLeftIcon, HelpIcon } from '@shared/icons'
 import { STORAGE_KEYS } from '@/lib/storageKeys'
 import { PROMOTION_SOUND_DELAY_MS } from '@/lib/gameConstants'
@@ -47,10 +56,6 @@ export function CheckersGame() {
   const {
     gameState,
     isAnimating,
-    animatingPiece,
-    capturedPiece,
-    promotedPiece,
-    intermediateBoard,
     handleSquareClick,
     startNewGame,
     startGame,
@@ -82,6 +87,8 @@ export function CheckersGame() {
   const [showAchievements, setShowAchievements] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
+  // An opponent picked mid-game, waiting for the player to confirm ending the game
+  const [pendingOpponent, setPendingOpponent] = useState<Difficulty | null>(null)
   const gameStartTimeRef = useRef<number>(0)
   const [hasCompletedTutorial, setHasCompletedTutorial] = useState(() => {
     try {
@@ -334,11 +341,8 @@ export function CheckersGame() {
       if (difficulty === gameState.difficulty) return
       // The opponent cannot change inside a game, so the record stays honest.
       // Switching mid-game ends it (no result is recorded) and starts a fresh one.
-      if (
-        gameState.status === 'playing' &&
-        gameState.moveHistory.length > 0 &&
-        !window.confirm('Change opponent? This ends the current game and starts a new one.')
-      ) {
+      if (gameState.status === 'playing' && gameState.moveHistory.length > 0) {
+        setPendingOpponent(difficulty)
         return
       }
       setVictoryDialogDismissed(false)
@@ -349,6 +353,15 @@ export function CheckersGame() {
     [isSetup, changeDifficulty, startGame, gameState.difficulty, gameState.mode, gameState.status, gameState.moveHistory.length]
   )
 
+  const confirmOpponentChange = useCallback(() => {
+    if (pendingOpponent === null) return
+    setPendingOpponent(null)
+    setVictoryDialogDismissed(false)
+    gameEndHandledRef.current = false
+    gameStartTimeRef.current = Date.now()
+    startGame(gameState.mode, pendingOpponent)
+  }, [pendingOpponent, startGame, gameState.mode])
+
   const handleModeChange = useCallback(
     (mode: 'pvp' | 'pvc') => {
       changeMode(mode)
@@ -356,7 +369,7 @@ export function CheckersGame() {
     [changeMode]
   )
 
-  // Keyboard shortcut for undo (U key)
+  // Keyboard shortcuts: U to undo, H for a hint
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Don't interfere with typing in inputs
@@ -372,11 +385,15 @@ export function CheckersGame() {
         event.preventDefault()
         undoMove()
       }
+      if ((event.key === 'h' || event.key === 'H') && canRequestHint && !isPvP) {
+        event.preventDefault()
+        requestHint()
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [canUndo, undoMove])
+  }, [canUndo, undoMove, canRequestHint, isPvP, requestHint])
 
   const opponent = character.name
   const squareName = (p: { row: number; col: number }) => `${String.fromCharCode(97 + p.col)}${8 - p.row}`
@@ -386,7 +403,18 @@ export function CheckersGame() {
     : hintPending
       ? 'Looking for a hint'
       : ''
-  const kingsNote = (kings: number) => (kings > 0 ? ` (${kings} ${kings === 1 ? 'king' : 'kings'})` : '')
+  // Kings are on the board for all to see; the note is spelled out where there is room.
+  const kingsNote = (kings: number) =>
+    kings > 0 ? <span className="sr-only sm:not-sr-only">{`, ${kings} ${kings === 1 ? 'king' : 'kings'}`}</span> : null
+
+  // Captures are forced: ring the men that must jump on a human's turn.
+  const humanTurn = gameState.status === 'playing' && (isPvP || gameState.currentPlayer === 1)
+  const mustJumpFrom: Position[] =
+    humanTurn && gameState.mustJump
+      ? gameState.validMoves.filter(m => m.jumps.length > 0).map(m => m.from)
+      : []
+  // At game over, ring the man whose move decided it.
+  const decisiveSquare = gameState.status === 'won' && gameState.lastMove ? gameState.lastMove.to : null
 
   let turnText: string
   if (gameState.status === 'won') {
@@ -495,10 +523,13 @@ export function CheckersGame() {
           <div className="arcade-turn" data-active={turnActive} role="status">
             {turnText}
           </div>
-          <div>
-            <strong>{gameState.blackCount}</strong>
-            {isPvP ? 'Black' : opponent}
-            {kingsNote(gameState.blackKings)}
+          <div className="arcade-player">
+            {!isPvP && <img className="arcade-avatar" data-character={character.id} src={character.avatar} alt="" />}
+            <div>
+              <strong>{gameState.blackCount}</strong>
+              {isPvP ? 'Black' : opponent}
+              {kingsNote(gameState.blackKings)}
+            </div>
           </div>
         </div>
 
@@ -510,11 +541,10 @@ export function CheckersGame() {
             isPieceSelected={isPieceSelected}
             disabled={isAnimating || gameState.status !== 'playing'}
             lastMove={gameState.lastMove}
-            animatingPiece={animatingPiece}
-            capturedPiece={capturedPiece}
-            promotedPiece={promotedPiece}
-            intermediateBoard={intermediateBoard}
+            moveCount={gameState.moveHistory.length}
             hintSquares={hintSquares}
+            mustJumpFrom={mustJumpFrom}
+            decisiveSquare={decisiveSquare}
           />
         </div>
         <p className="sr-only" aria-live="polite">
@@ -524,6 +554,7 @@ export function CheckersGame() {
         <GameControls
           onNewGame={handleNewGame}
           onShowLeaderboard={() => setShowLeaderboard(true)}
+          onShowHelp={() => setShowTutorial(true)}
           onShowAchievements={() => setShowAchievements(true)}
           onShowHistory={() => setShowHistory(true)}
           onReturnToSetup={handleReturnToSetup}
@@ -548,6 +579,26 @@ export function CheckersGame() {
           gameMode={gameState.mode}
         />
       )}
+
+      <Dialog open={pendingOpponent !== null} onOpenChange={open => !open && setPendingOpponent(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change opponent?</DialogTitle>
+            <DialogDescription>
+              This ends the current game and starts a new one against{' '}
+              {pendingOpponent === 'easy' ? 'Bella' : pendingOpponent === 'hard' ? 'Bentley' : 'Coop'}.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" className="h-11" onClick={() => setPendingOpponent(null)}>
+              Cancel
+            </Button>
+            <Button className="h-11" onClick={confirmOpponentChange}>
+              New game
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {showLeaderboard && (
         <LeaderboardDialog

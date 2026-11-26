@@ -1,14 +1,40 @@
 /**
- * Animation Constants (milliseconds)
+ * Animation timing (milliseconds).
  *
- * Timing values for piece movement, capture, and promotion animations.
- * MOVE/JUMP durations must match their CSS animation counterparts in index.css.
+ * The game state changes the moment a move is made; these only say how long the
+ * board takes to show it. A move slides one square, a jump slides two (hop by
+ * hop for a multi-jump), the jumped man fades as the mover passes over it, and a
+ * new king settles once at the end. Input is blocked for exactly that long.
  */
 
-export const AI_MOVE_DELAY = 600 // Least time from the player's move to the AI's reply starting
-export const AI_MIN_PAUSE_AFTER_MOVE = 300 // Least pause after the player's move lands
-export const MOVE_ANIMATION_DURATION = 350 // Simple diagonal slide
-export const JUMP_ANIMATION_DURATION = 500 // Jump arc animation
-export const CAPTURE_ANIMATION_DURATION = 400 // Captured piece fade-out
-export const PROMOTION_ANIMATION_DURATION = 800 // King crown appear
-export const POST_ANIMATION_SETTLE_DELAY = 300 // Pause after animation before showing dialogs
+import type { Move } from '@/types/checkers.types'
+
+/** Least time from the player's move to the opponent's reply landing (search time counts toward it). */
+export const MIN_REPLY_MS = 600
+/** One diagonal step. */
+export const SLIDE_MS = 200
+/** One hop of a jump (two squares). */
+export const HOP_MS = 240
+/** A jumped man fading out once the mover is over it. */
+export const CAPTURE_FADE_MS = 180
+/** A new king settling onto its second disc. */
+export const CROWN_SETTLE_MS = 260
+
+export function prefersReducedMotion(): boolean {
+  try {
+    return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return false
+  }
+}
+
+/** How long the board spends travelling the piece along the move. */
+export function travelMs(move: Pick<Move, 'jumps'>): number {
+  return move.jumps.length > 0 ? move.jumps.length * HOP_MS : SLIDE_MS
+}
+
+/** Total time the board needs to show a move, crowning included. */
+export function moveAnimationMs(move: Pick<Move, 'jumps' | 'becameKing'>): number {
+  if (prefersReducedMotion()) return 0
+  return travelMs(move) + (move.becameKing ? CROWN_SETTLE_MS : 0)
+}

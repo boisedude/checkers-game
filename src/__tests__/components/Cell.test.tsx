@@ -9,7 +9,7 @@ describe('Cell', () => {
     row: 3,
     col: 4,
     piece: null as CellValue,
-    onClick: vi.fn(),
+    onActivate: vi.fn(),
     isHighlighted: false,
     isSelected: false,
     isDark: true,
@@ -21,224 +21,168 @@ describe('Cell', () => {
   })
 
   describe('dark/light squares', () => {
-    it('renders dark square with wood-dark class', () => {
+    it('renders dark square with ck-dark class', () => {
       const { container } = render(<Cell {...defaultProps} isDark={true} />)
       const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).toContain('wood-dark')
-      expect(cellDiv.className).not.toContain('wood-light')
+      expect(cellDiv.className).toContain('ck-dark')
+      expect(cellDiv.className).not.toContain('ck-light')
     })
 
-    it('renders light square with wood-light class', () => {
+    it('renders light square with ck-light class', () => {
       const { container } = render(<Cell {...defaultProps} isDark={false} />)
       const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).toContain('wood-light')
-      expect(cellDiv.className).not.toContain('wood-dark')
+      expect(cellDiv.className).toContain('ck-light')
+      expect(cellDiv.className).not.toContain('ck-dark')
     })
   })
 
-  describe('click handling', () => {
-    it('calls onClick with row and col when clicked and not disabled', () => {
-      const onClick = vi.fn()
-      render(<Cell {...defaultProps} onClick={onClick} row={2} col={5} />)
-
-      const cell = screen.getByRole('gridcell')
-      fireEvent.click(cell)
-
-      expect(onClick).toHaveBeenCalledTimes(1)
-      expect(onClick).toHaveBeenCalledWith(2, 5)
+  describe('pointer input', () => {
+    it('leaves clicks to the board, which handles pointer input', () => {
+      const onActivate = vi.fn()
+      render(<Cell {...defaultProps} onActivate={onActivate} row={2} col={5} />)
+      fireEvent.click(screen.getByRole('gridcell'))
+      expect(onActivate).not.toHaveBeenCalled()
     })
 
-    it('does not call onClick when disabled', () => {
-      const onClick = vi.fn()
-      render(<Cell {...defaultProps} onClick={onClick} disabled={true} />)
-
-      const cell = screen.getByRole('gridcell')
-      fireEvent.click(cell)
-
-      expect(onClick).not.toHaveBeenCalled()
+    it('shows a pointer cursor on a square with a piece', () => {
+      const { container } = render(<Cell {...defaultProps} piece={{ player: 1, type: 'regular' }} />)
+      expect((container.firstElementChild as HTMLElement).className).toContain('cursor-pointer')
     })
 
-    it('calls onClick on multiple clicks', () => {
-      const onClick = vi.fn()
-      render(<Cell {...defaultProps} onClick={onClick} row={1} col={2} />)
-
-      const cell = screen.getByRole('gridcell')
-      fireEvent.click(cell)
-      fireEvent.click(cell)
-
-      expect(onClick).toHaveBeenCalledTimes(2)
+    it('shows no pointer cursor when disabled', () => {
+      const { container } = render(
+        <Cell {...defaultProps} piece={{ player: 1, type: 'regular' }} disabled={true} />
+      )
+      expect((container.firstElementChild as HTMLElement).className).not.toContain('cursor-pointer')
     })
   })
 
   describe('highlighted state', () => {
-    it('applies cell-highlighted class for valid moves', () => {
-      const { container } = render(<Cell {...defaultProps} isHighlighted={true} />)
-      const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).toContain('cell-highlighted')
-    })
-
     it('shows valid-move-indicator dot when highlighted and no piece', () => {
-      const { container } = render(
-        <Cell {...defaultProps} isHighlighted={true} piece={null} />
-      )
-      const indicator = container.querySelector('.valid-move-indicator')
-      expect(indicator).not.toBeNull()
+      const { container } = render(<Cell {...defaultProps} isHighlighted={true} piece={null} />)
+      expect(container.querySelector('.valid-move-indicator')).not.toBeNull()
     })
 
     it('does not show valid-move-indicator when not highlighted', () => {
-      const { container } = render(
-        <Cell {...defaultProps} isHighlighted={false} piece={null} />
-      )
-      const indicator = container.querySelector('.valid-move-indicator')
-      expect(indicator).toBeNull()
+      const { container } = render(<Cell {...defaultProps} isHighlighted={false} piece={null} />)
+      expect(container.querySelector('.valid-move-indicator')).toBeNull()
     })
 
     it('does not show valid-move-indicator when highlighted but has a piece', () => {
       const piece: CellValue = { player: 1, type: 'regular' }
-      const { container } = render(
-        <Cell {...defaultProps} isHighlighted={true} piece={piece} />
-      )
-      const indicator = container.querySelector('.valid-move-indicator')
-      expect(indicator).toBeNull()
+      const { container } = render(<Cell {...defaultProps} isHighlighted={true} piece={piece} />)
+      expect(container.querySelector('.valid-move-indicator')).toBeNull()
     })
   })
 
   describe('selected state', () => {
-    it('marks the cell selected without a cell tint when isSelected and not highlighted', () => {
-      const { container } = render(
-        <Cell {...defaultProps} isSelected={true} isHighlighted={false} />
-      )
+    it('marks the selected square with a wash and aria-selected', () => {
+      const { container } = render(<Cell {...defaultProps} isSelected={true} />)
       const cellDiv = container.firstElementChild as HTMLElement
       expect(cellDiv).toHaveAttribute('aria-selected', 'true')
-      expect(cellDiv.className).not.toContain('cell-selected')
+      expect(cellDiv.className).toContain('ck-selected')
     })
 
-    it('highlighted takes visual priority over selected', () => {
-      const { container } = render(
-        <Cell {...defaultProps} isSelected={true} isHighlighted={true} />
-      )
-      const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).toContain('cell-highlighted')
-      // cell-selected should not appear when highlighted is active
-      expect(cellDiv.className).not.toContain('cell-selected')
+    it('has no selection wash when not selected', () => {
+      const { container } = render(<Cell {...defaultProps} isSelected={false} />)
+      expect((container.firstElementChild as HTMLElement).className).not.toContain('ck-selected')
     })
   })
 
   describe('keyboard interaction', () => {
     it('handles Enter key press', () => {
-      const onClick = vi.fn()
-      render(<Cell {...defaultProps} onClick={onClick} row={4} col={3} />)
-
-      const cell = screen.getByRole('gridcell')
-      fireEvent.keyDown(cell, { key: 'Enter' })
-
-      expect(onClick).toHaveBeenCalledTimes(1)
-      expect(onClick).toHaveBeenCalledWith(4, 3)
+      const onActivate = vi.fn()
+      render(<Cell {...defaultProps} onActivate={onActivate} row={4} col={3} />)
+      fireEvent.keyDown(screen.getByRole('gridcell'), { key: 'Enter' })
+      expect(onActivate).toHaveBeenCalledTimes(1)
+      expect(onActivate).toHaveBeenCalledWith(4, 3)
     })
 
     it('handles Space key press', () => {
-      const onClick = vi.fn()
-      render(<Cell {...defaultProps} onClick={onClick} row={4} col={3} />)
-
-      const cell = screen.getByRole('gridcell')
-      fireEvent.keyDown(cell, { key: ' ' })
-
-      expect(onClick).toHaveBeenCalledTimes(1)
-      expect(onClick).toHaveBeenCalledWith(4, 3)
+      const onActivate = vi.fn()
+      render(<Cell {...defaultProps} onActivate={onActivate} row={4} col={3} />)
+      fireEvent.keyDown(screen.getByRole('gridcell'), { key: ' ' })
+      expect(onActivate).toHaveBeenCalledTimes(1)
+      expect(onActivate).toHaveBeenCalledWith(4, 3)
     })
 
     it('does not trigger on other keys', () => {
-      const onClick = vi.fn()
-      render(<Cell {...defaultProps} onClick={onClick} />)
-
+      const onActivate = vi.fn()
+      render(<Cell {...defaultProps} onActivate={onActivate} />)
       const cell = screen.getByRole('gridcell')
       fireEvent.keyDown(cell, { key: 'Escape' })
       fireEvent.keyDown(cell, { key: 'Tab' })
       fireEvent.keyDown(cell, { key: 'a' })
-
-      expect(onClick).not.toHaveBeenCalled()
+      expect(onActivate).not.toHaveBeenCalled()
     })
 
     it('does not trigger keyboard action when disabled', () => {
-      const onClick = vi.fn()
-      render(<Cell {...defaultProps} onClick={onClick} disabled={true} />)
-
+      const onActivate = vi.fn()
+      render(<Cell {...defaultProps} onActivate={onActivate} disabled={true} />)
       const cell = screen.getByRole('gridcell')
       fireEvent.keyDown(cell, { key: 'Enter' })
       fireEvent.keyDown(cell, { key: ' ' })
-
-      expect(onClick).not.toHaveBeenCalled()
+      expect(onActivate).not.toHaveBeenCalled()
     })
   })
 
   describe('ARIA labels', () => {
     it('has correct ARIA label for empty dark square', () => {
       render(<Cell {...defaultProps} row={3} col={4} piece={null} />)
-      const cell = screen.getByRole('gridcell')
       // col 4 = 'e', row 3 => rowNumber = 8-3 = 5, so "e5: empty"
-      expect(cell).toHaveAttribute('aria-label', 'e5: empty')
+      expect(screen.getByRole('gridcell')).toHaveAttribute('aria-label', 'e5: empty')
     })
 
     it('has correct ARIA label for cell with red piece', () => {
-      const piece: CellValue = { player: 1, type: 'regular' }
-      render(<Cell {...defaultProps} row={5} col={2} piece={piece} />)
-      const cell = screen.getByRole('gridcell')
-      // col 2 = 'c', row 5 => rowNumber = 8-5 = 3, so "c3: Red piece"
-      expect(cell).toHaveAttribute('aria-label', 'c3: Red piece')
+      render(<Cell {...defaultProps} row={5} col={2} piece={{ player: 1, type: 'regular' }} />)
+      expect(screen.getByRole('gridcell')).toHaveAttribute('aria-label', 'c3: Red piece')
     })
 
     it('has correct ARIA label for cell with black king', () => {
-      const piece: CellValue = { player: 2, type: 'king' }
-      render(<Cell {...defaultProps} row={0} col={1} piece={piece} />)
-      const cell = screen.getByRole('gridcell')
-      // col 1 = 'b', row 0 => rowNumber = 8, so "b8: Black king"
-      expect(cell).toHaveAttribute('aria-label', 'b8: Black king')
+      render(<Cell {...defaultProps} row={0} col={1} piece={{ player: 2, type: 'king' }} />)
+      expect(screen.getByRole('gridcell')).toHaveAttribute('aria-label', 'b8: Black king')
     })
 
     it('has correct ARIA label for highlighted empty cell', () => {
       render(<Cell {...defaultProps} row={4} col={3} piece={null} isHighlighted={true} />)
-      const cell = screen.getByRole('gridcell')
-      // col 3 = 'd', row 4 => rowNumber = 4, so "d4: valid move destination"
-      expect(cell).toHaveAttribute('aria-label', 'd4: valid move destination')
+      expect(screen.getByRole('gridcell')).toHaveAttribute('aria-label', 'd4: valid move destination')
     })
 
     it('includes selected status in ARIA label when piece is selected', () => {
-      const piece: CellValue = { player: 1, type: 'regular' }
-      render(<Cell {...defaultProps} row={5} col={2} piece={piece} isSelected={true} />)
-      const cell = screen.getByRole('gridcell')
-      expect(cell).toHaveAttribute('aria-label', 'c3: Red piece, selected')
+      render(<Cell {...defaultProps} row={5} col={2} piece={{ player: 1, type: 'regular' }} isSelected={true} />)
+      expect(screen.getByRole('gridcell')).toHaveAttribute('aria-label', 'c3: Red piece, selected')
+    })
+
+    it('says a ringed man must jump', () => {
+      render(<Cell {...defaultProps} row={5} col={2} piece={{ player: 1, type: 'regular' }} ring={true} />)
+      expect(screen.getByRole('gridcell')).toHaveAttribute('aria-label', 'c3: Red piece, must jump')
     })
 
     it('has correct aria-selected attribute', () => {
       render(<Cell {...defaultProps} isSelected={true} />)
-      const cell = screen.getByRole('gridcell')
-      expect(cell).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('gridcell')).toHaveAttribute('aria-selected', 'true')
     })
 
     it('has correct aria-disabled attribute when disabled', () => {
       render(<Cell {...defaultProps} disabled={true} />)
-      const cell = screen.getByRole('gridcell')
-      expect(cell).toHaveAttribute('aria-disabled', 'true')
+      expect(screen.getByRole('gridcell')).toHaveAttribute('aria-disabled', 'true')
     })
   })
 
   describe('tabIndex', () => {
     it('has tabIndex 0 for dark squares when not disabled', () => {
       render(<Cell {...defaultProps} isDark={true} disabled={false} />)
-      const cell = screen.getByRole('gridcell')
-      expect(cell).toHaveAttribute('tabindex', '0')
+      expect(screen.getByRole('gridcell')).toHaveAttribute('tabindex', '0')
     })
 
     it('has tabIndex -1 for light squares', () => {
       render(<Cell {...defaultProps} isDark={false} disabled={false} />)
-      const cell = screen.getByRole('gridcell')
-      expect(cell).toHaveAttribute('tabindex', '-1')
+      expect(screen.getByRole('gridcell')).toHaveAttribute('tabindex', '-1')
     })
 
     it('has tabIndex -1 for disabled dark squares', () => {
       render(<Cell {...defaultProps} isDark={true} disabled={true} />)
-      const cell = screen.getByRole('gridcell')
-      expect(cell).toHaveAttribute('tabindex', '-1')
+      expect(screen.getByRole('gridcell')).toHaveAttribute('tabindex', '-1')
     })
   })
 
@@ -253,9 +197,7 @@ describe('Cell', () => {
 
   describe('piece rendering', () => {
     it('renders Piece component when piece is present', () => {
-      const piece: CellValue = { player: 1, type: 'regular' }
-      render(<Cell {...defaultProps} piece={piece} />)
-      // Piece renders with role="img"
+      render(<Cell {...defaultProps} piece={{ player: 1, type: 'regular' }} />)
       expect(screen.getByRole('img')).toBeInTheDocument()
     })
 
@@ -265,56 +207,55 @@ describe('Cell', () => {
     })
 
     it('passes isSelected to Piece component', () => {
-      const piece: CellValue = { player: 1, type: 'regular' }
-      render(<Cell {...defaultProps} piece={piece} isSelected={true} />)
-      const img = screen.getByRole('img')
-      expect(img).toHaveAttribute('aria-label', expect.stringContaining('selected'))
+      render(<Cell {...defaultProps} piece={{ player: 1, type: 'regular' }} isSelected={true} />)
+      expect(screen.getByRole('img')).toHaveAttribute('aria-label', expect.stringContaining('selected'))
     })
 
-    it('passes isBeingCaptured to Piece component', () => {
-      const piece: CellValue = { player: 2, type: 'regular' }
+    it('shows a jumped man fading on an emptied square, hidden from assistive tech', () => {
       const { container } = render(
-        <Cell {...defaultProps} piece={piece} isBeingCaptured={true} />
+        <Cell {...defaultProps} piece={null} captured={{ piece: { player: 2, type: 'regular' }, delayMs: 120 }} />
       )
-      const pieceDiv = container.querySelector('[role="img"]')
-      expect(pieceDiv).not.toBeNull()
-      expect(pieceDiv!.className).toContain('animate-piece-capture')
+      const ghost = container.querySelector('.ck-captured') as HTMLElement
+      expect(ghost).not.toBeNull()
+      expect(ghost).toHaveAttribute('aria-hidden', 'true')
+      expect(ghost.style.animationDelay).toBe('120ms')
     })
 
-    it('passes isBeingPromoted to Piece component', () => {
-      const piece: CellValue = { player: 1, type: 'king' }
+    it('settles the crown on a man crowned by the move being shown', () => {
       const { container } = render(
-        <Cell {...defaultProps} piece={piece} isBeingPromoted={true} />
+        <Cell {...defaultProps} piece={{ player: 1, type: 'king' }} crownDelayMs={200} />
       )
-      const pieceDiv = container.querySelector('[role="img"]')
-      expect(pieceDiv).not.toBeNull()
-      expect(pieceDiv!.className).toContain('animate-king-promotion')
+      expect(container.querySelector('.ck-crowning')).not.toBeNull()
+    })
+
+    it('wraps a travelling man so its slide can play', () => {
+      const { container } = render(
+        <Cell
+          {...defaultProps}
+          piece={{ player: 1, type: 'regular' }}
+          travel={{ path: [{ dx: -1, dy: 1 }, { dx: 0, dy: 0 }], isJump: false, stepMs: 200 }}
+          animKey={1}
+        />
+      )
+      expect(container.querySelector('.ck-travelling')).not.toBeNull()
     })
   })
 
-  describe('last move indicators', () => {
-    it('applies last move ring when lastMoveFrom is true and not selected/highlighted', () => {
-      const { container } = render(
-        <Cell {...defaultProps} lastMoveFrom={true} isSelected={false} isHighlighted={false} />
-      )
-      const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).toContain('ring-primary/40')
+  describe('last move and hint marks', () => {
+    it('washes a square of the last move', () => {
+      const { container } = render(<Cell {...defaultProps} isLastMove={true} />)
+      expect((container.firstElementChild as HTMLElement).className).toContain('ck-last')
     })
 
-    it('applies last move ring when lastMoveTo is true and not selected/highlighted', () => {
-      const { container } = render(
-        <Cell {...defaultProps} lastMoveTo={true} isSelected={false} isHighlighted={false} />
-      )
-      const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).toContain('ring-primary/40')
+    it('has no last-move wash otherwise', () => {
+      const { container } = render(<Cell {...defaultProps} isLastMove={false} />)
+      expect((container.firstElementChild as HTMLElement).className).not.toContain('ck-last')
     })
 
-    it('does not apply last move ring when isSelected is true', () => {
-      const { container } = render(
-        <Cell {...defaultProps} lastMoveFrom={true} isSelected={true} isHighlighted={false} />
-      )
-      const cellDiv = container.firstElementChild as HTMLElement
-      expect(cellDiv.className).not.toContain('ring-primary/40')
+    it('rings a hint square with the shared hint mark', () => {
+      const { container } = render(<Cell {...defaultProps} isHint={true} />)
+      expect(container.querySelector('.arcade-hint')).not.toBeNull()
+      expect(screen.getByRole('gridcell')).toHaveAttribute('aria-label', 'e5: empty, hint')
     })
   })
 })
