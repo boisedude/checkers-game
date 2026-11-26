@@ -1,225 +1,152 @@
 /**
  * Checkers AI Strategies
  *
- * Exports: getAIMove(board, player, difficulty) -> ValidMove | null.
- * Uses minimax with alpha-beta pruning. Each difficulty has different:
- * - Search depth (2/4/6), evaluation weights, and randomness factor.
- * Easy (Bella) plays randomly 30% of the time. Hard (Bentley) never does.
+ * Exports: getAIMove(board, player, difficulty, context?) -> ValidMove | null.
+ * - Easy (Bella): 2-ply minimax on material, and a random move 30% of the time.
+ * - Medium (Coop): the engine at a fixed 4 plies (plus forced captures), choosing
+ *   at random among moves within a quarter of a man of the best.
+ * - Hard (Bentley): the engine with a 700 ms budget (see engine.ts).
  */
 
 import type { Board, Player, ValidMove, Difficulty } from '@/types/checkers.types'
-import {
-  getAllValidMoves,
-  applyMove,
-  checkGameOver,
-  countPieces,
-} from './checkersRules'
+import { getAllValidMoves, applyMove, checkGameOver, countPieces } from './checkersRules'
+import { searchBestMove } from './engine'
 
-// AI search depth by difficulty level
-const AI_DEPTH = {
-  easy: 2,    // Bella: shallow search keeps her fast and beatable
-  medium: 4,  // Coop: deep enough for decent tactics, still quick to compute
-  hard: 6,    // Bentley: deep search for near-optimal play within performance budget
-} as const
+/** Bentley's thinking time per move in the worker (ms). */
+export const BENTLEY_TIME_MS = 700
+/** Time for a hint (ms). */
+export const HINT_TIME_MS = 400
+/** Budget when the search has to run on the main thread (no worker). */
+export const SYNC_TIME_MS = 150
+/** Coop searches a fixed number of plies (plus captures) and picks among near-equal moves. */
+export const COOP_DEPTH = 4
+const COOP_MARGIN = 25
+/** In his first few moves Bentley may pick any move proven within this margin of the best. */
+const BENTLEY_OPENING_MARGIN = 6
+const BENTLEY_OPENING_PLIES = 10
 
-// Scoring constants for game evaluation
-const SCORE = {
-  WIN: 10000,
-  LOSS: -10000,
-} as const
-
-/** Board evaluation weights per difficulty. Higher values = stronger positional play. */
-const EVAL_WEIGHTS = {
-  // Easy (Bella): low king bonus and minimal positional awareness make her exploitable
-  easy: {
-    piece: 100,       // Base material value; same across all levels
-    king: 150,        // Only 1.5x a regular piece -- undervalues promotion
-    backRow: 10,      // Slight awareness of back-row defense
-    center: 5,        // Barely considers center control
-    mobility: 1,      // Nearly ignores move availability
-    randomness: 0.3,  // 30% chance of a random move to create openings for the player
-  },
-  // Medium (Coop): balanced weights reward solid positional play without being ruthless
-  medium: {
-    piece: 100,       // Base material value
-    king: 180,        // Kings valued ~2x a piece -- encourages promotion
-    backRow: 15,      // Moderate back-row protection to block easy kings
-    center: 10,       // Rewards controlling the center of the board
-    mobility: 2,      // Values having more move options than the opponent
-    randomness: 0.05, // 5% random moves add slight unpredictability
-  },
-  // Hard (Bentley): maximized positional weights for ruthless, optimal play
-  hard: {
-    piece: 100,       // Base material value
-    king: 200,        // Kings worth 2x a piece -- strongly pursues promotion
-    backRow: 20,      // Prioritizes back-row defense to deny opponent kings
-    center: 15,       // Aggressively fights for central board dominance
-    mobility: 3,      // Heavily penalizes positions with fewer available moves
-    randomness: 0,    // No randomness -- always plays the best evaluated move
-  },
+/** Game context the engine needs to respect the draw rules. All fields are optional. */
+export interface AIContext {
+  positionHistory?: string[]
+  movesWithoutCaptureOrPromotion?: number
+  /** Plies played so far (opening variety). */
+  plyCount?: number
+  /** Overrides the time budget (hint, synchronous fallback). */
+  timeMs?: number
 }
 
-/** Center 4x4 region -- controlling these squares gives positional advantage. */
-const CENTER_SQUARES = new Set([
-  '2,2', '2,3', '2,4', '2,5',
-  '3,2', '3,3', '3,4', '3,5',
-  '4,2', '4,3', '4,4', '4,5',
-  '5,2', '5,3', '5,4', '5,5',
-])
+// ---------------------------------------------------------------------------
+// Bella: shallow material minimax with frequent random moves
+// ---------------------------------------------------------------------------
 
-/** Evaluates board position. Positive = good for player. Considers material, position, mobility. */
-function evaluateBoard(
-  board: Board,
-  player: Player,
-  difficulty: Difficulty
-): number {
-  const weights = EVAL_WEIGHTS[difficulty]
+const EASY_DEPTH = 2
+const EASY_RANDOMNESS = 0.3
+const EASY_PIECE = 100
+const EASY_KING = 150
+const WIN = 10000
+const LOSS = -10000
+
+function evaluateMaterial(board: Board, player: Player): number {
   const counts = countPieces(board)
-  let score = 0
-
-  // Material count
   const myPieces = player === 1 ? counts.redCount : counts.blackCount
   const oppPieces = player === 1 ? counts.blackCount : counts.redCount
   const myKings = player === 1 ? counts.redKings : counts.blackKings
   const oppKings = player === 1 ? counts.blackKings : counts.redKings
-
-  score += (myPieces - oppPieces) * weights.piece
-  score += (myKings - oppKings) * weights.king
-
-  // Position evaluation (only for medium/hard)
-  if (difficulty !== 'easy') {
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
-        const piece = board[row][col]
-        if (!piece) continue
-
-        const posValue = piece.player === player ? 1 : -1
-
-        // Center control
-        if (CENTER_SQUARES.has(`${row},${col}`)) {
-          score += posValue * weights.center
-        }
-
-        // Back row protection (prevent opponent from kinging easily)
-        if (piece.type === 'regular') {
-          if (piece.player === 1 && row === 7) {
-            score += posValue * weights.backRow
-          } else if (piece.player === 2 && row === 0) {
-            score += posValue * weights.backRow
-          }
-        }
-      }
-    }
-
-    // Mobility (number of available moves)
-    const myMoves = getAllValidMoves(board, player).length
-    const oppMoves = getAllValidMoves(board, player === 1 ? 2 : 1).length
-    score += (myMoves - oppMoves) * weights.mobility
-  }
-
-  return score
+  return (myPieces - oppPieces) * EASY_PIECE + (myKings - oppKings) * EASY_KING
 }
 
-/** Minimax with alpha-beta pruning. Returns best score and associated move. */
 function minimax(
   board: Board,
   depth: number,
   alpha: number,
   beta: number,
   maximizingPlayer: boolean,
-  player: Player,
-  difficulty: Difficulty
+  player: Player
 ): { score: number; move: ValidMove | null } {
-  // Base case: depth reached or game over
-  const gameOver = checkGameOver(board, maximizingPlayer ? player : (player === 1 ? 2 : 1))
+  const gameOver = checkGameOver(board, maximizingPlayer ? player : player === 1 ? 2 : 1)
 
   if (depth === 0 || gameOver.isOver) {
     if (gameOver.isOver) {
-      // Big bonus/penalty for winning/losing
-      // Remaining depth breaks ties: win sooner, lose later. Without it a winning
-      // position can be shuffled forever because every winning line scores the same.
-      if (gameOver.winner === player) {
-        return { score: SCORE.WIN + depth, move: null }
-      } else if (gameOver.winner !== null) {
-        return { score: SCORE.LOSS - depth, move: null }
-      }
+      if (gameOver.winner === player) return { score: WIN + depth, move: null }
+      if (gameOver.winner !== null) return { score: LOSS - depth, move: null }
     }
-    return { score: evaluateBoard(board, player, difficulty), move: null }
+    return { score: evaluateMaterial(board, player), move: null }
   }
 
-  const currentPlayer = maximizingPlayer ? player : (player === 1 ? 2 : 1)
+  const currentPlayer = maximizingPlayer ? player : player === 1 ? 2 : 1
   const validMoves = getAllValidMoves(board, currentPlayer)
-
   if (validMoves.length === 0) {
-    // No moves available - player loses
-    return { score: maximizingPlayer ? SCORE.LOSS - depth : SCORE.WIN + depth, move: null }
+    return { score: maximizingPlayer ? LOSS - depth : WIN + depth, move: null }
   }
 
   let bestMove: ValidMove | null = null
-
   if (maximizingPlayer) {
     let maxScore = -Infinity
-
     for (const move of validMoves) {
-      const newBoard = applyMove(board, move)
-      const { score } = minimax(newBoard, depth - 1, alpha, beta, false, player, difficulty)
-
+      const { score } = minimax(applyMove(board, move), depth - 1, alpha, beta, false, player)
       if (score > maxScore) {
         maxScore = score
         bestMove = move
       }
-
       alpha = Math.max(alpha, score)
-      if (beta <= alpha) {
-        break // Beta cutoff
-      }
+      if (beta <= alpha) break
     }
-
     return { score: maxScore, move: bestMove }
-  } else {
-    let minScore = Infinity
-
-    for (const move of validMoves) {
-      const newBoard = applyMove(board, move)
-      const { score } = minimax(newBoard, depth - 1, alpha, beta, true, player, difficulty)
-
-      if (score < minScore) {
-        minScore = score
-        bestMove = move
-      }
-
-      beta = Math.min(beta, score)
-      if (beta <= alpha) {
-        break // Alpha cutoff
-      }
-    }
-
-    return { score: minScore, move: bestMove }
   }
+  let minScore = Infinity
+  for (const move of validMoves) {
+    const { score } = minimax(applyMove(board, move), depth - 1, alpha, beta, true, player)
+    if (score < minScore) {
+      minScore = score
+      bestMove = move
+    }
+    beta = Math.min(beta, score)
+    if (beta <= alpha) break
+  }
+  return { score: minScore, move: bestMove }
 }
 
-/** Main AI entry point. Returns the best move for the given player and difficulty. */
+function bellaMove(board: Board, player: Player, validMoves: ValidMove[]): ValidMove {
+  if (Math.random() < EASY_RANDOMNESS) {
+    return validMoves[Math.floor(Math.random() * validMoves.length)]
+  }
+  const { move } = minimax(board, EASY_DEPTH, -Infinity, Infinity, true, player)
+  return move || validMoves[Math.floor(Math.random() * validMoves.length)]
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
+
+/** Returns the move for the given player and difficulty, or null when there is none. */
 export function getAIMove(
   board: Board,
   player: Player,
-  difficulty: Difficulty
+  difficulty: Difficulty,
+  context: AIContext = {}
 ): ValidMove | null {
   const validMoves = getAllValidMoves(board, player)
-
   if (validMoves.length === 0) return null
+  if (validMoves.length === 1) return validMoves[0]
 
-  // Random chance to make a random move (for easier difficulties)
-  const weights = EVAL_WEIGHTS[difficulty]
-  if (Math.random() < weights.randomness) {
-    return validMoves[Math.floor(Math.random() * validMoves.length)]
+  if (difficulty === 'easy') return bellaMove(board, player, validMoves)
+
+  const rules = {
+    positionHistory: context.positionHistory,
+    movesWithoutCaptureOrPromotion: context.movesWithoutCaptureOrPromotion,
   }
-
-  // Determine search depth based on difficulty
-  const depth = AI_DEPTH[difficulty]
-
-  // Use minimax to find the best move
-  const { move } = minimax(board, depth, -Infinity, Infinity, true, player, difficulty)
-
-  // Fallback to random move if minimax fails
-  return move || validMoves[Math.floor(Math.random() * validMoves.length)]
+  const result =
+    difficulty === 'medium'
+      ? searchBestMove(board, player, {
+          ...rules,
+          maxDepth: COOP_DEPTH,
+          exactRoot: true,
+          randomMargin: COOP_MARGIN,
+        })
+      : searchBestMove(board, player, {
+          ...rules,
+          timeMs: context.timeMs ?? BENTLEY_TIME_MS,
+          varietyMargin: (context.plyCount ?? 99) < BENTLEY_OPENING_PLIES ? BENTLEY_OPENING_MARGIN : 0,
+        })
+  return result.move ?? validMoves[0]
 }

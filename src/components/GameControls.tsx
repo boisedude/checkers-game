@@ -1,8 +1,9 @@
 /**
  * Game Controls Component
  *
- * One primary button (New game), outline buttons for Undo, Stats and How to play,
- * and a quiet ghost row for Achievements, History and Change mode.
+ * One primary button (New game), outline buttons for Undo, Hint (games against a
+ * character), Stats and How to play, and a quiet ghost row for Achievements, History
+ * and Change mode. The page leaves How to play to the top bar's help button.
  */
 
 import React from 'react'
@@ -18,6 +19,9 @@ interface GameControlsProps {
   onReturnToSetup?: () => void
   onUndo?: () => void
   canUndo?: boolean
+  onHint?: () => void
+  canHint?: boolean
+  hintPending?: boolean
   disabled?: boolean
   gameStatus?: GameStatus
 }
@@ -31,6 +35,9 @@ export const GameControls = React.memo(function GameControls({
   onReturnToSetup,
   onUndo,
   canUndo = false,
+  onHint,
+  canHint = false,
+  hintPending = false,
   disabled = false,
   gameStatus = 'playing',
 }: GameControlsProps) {
@@ -51,6 +58,18 @@ export const GameControls = React.memo(function GameControls({
             title="Undo (U)"
           >
             Undo
+          </Button>
+        )}
+
+        {onHint && gameStatus === 'playing' && (
+          <Button
+            onClick={onHint}
+            disabled={disabled || !canHint || hintPending}
+            variant="outline"
+            className="h-11 px-3 sm:px-5"
+            aria-label="Hint: show a good move"
+          >
+            Hint
           </Button>
         )}
 

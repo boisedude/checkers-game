@@ -29,6 +29,8 @@ interface BoardProps {
   capturedPiece?: Position | null
   promotedPiece?: Position | null
   intermediateBoard?: BoardType | null
+  /** Squares of a suggested move (origin and every landing square), marked with a static ring */
+  hintSquares?: Position[]
 }
 
 export const Board = React.memo(function Board({
@@ -42,6 +44,7 @@ export const Board = React.memo(function Board({
   capturedPiece,
   promotedPiece,
   intermediateBoard,
+  hintSquares,
 }: BoardProps) {
   // Arrow key navigation between cells
   const handleGridKeyDown = useCallback(
@@ -147,6 +150,9 @@ export const Board = React.memo(function Board({
                     lastMoveFrom={
                       lastMove?.from.row === rowIndex &&
                       lastMove?.from.col === colIndex
+                    }
+                    isHint={
+                      !!hintSquares?.some(sq => sq.row === rowIndex && sq.col === colIndex)
                     }
                     lastMoveTo={
                       lastMove?.to.row === rowIndex &&

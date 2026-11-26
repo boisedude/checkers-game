@@ -63,6 +63,10 @@ export function CheckersGame() {
     isPieceSelected,
     canUndo,
     hasSavedGame: hasSaved,
+    hintMove,
+    hintPending,
+    canRequestHint,
+    requestHint,
   } = useCheckersGame(getInitialDifficulty())
 
   const { character } = useCharacterSelection(gameState.difficulty)
@@ -375,6 +379,13 @@ export function CheckersGame() {
   }, [canUndo, undoMove])
 
   const opponent = character.name
+  const squareName = (p: { row: number; col: number }) => `${String.fromCharCode(97 + p.col)}${8 - p.row}`
+  const hintSquares = hintMove ? [hintMove.from, ...hintMove.jumps.map(j => j.to), ...(hintMove.jumps.length ? [] : [hintMove.to])] : undefined
+  const hintText = hintMove
+    ? `Hint: ${[hintMove.from, ...(hintMove.jumps.length ? hintMove.jumps.map(j => j.to) : [hintMove.to])].map(squareName).join(' to ')}`
+    : hintPending
+      ? 'Looking for a hint'
+      : ''
   const kingsNote = (kings: number) => (kings > 0 ? ` (${kings} ${kings === 1 ? 'king' : 'kings'})` : '')
 
   let turnText: string
@@ -503,18 +514,24 @@ export function CheckersGame() {
             capturedPiece={capturedPiece}
             promotedPiece={promotedPiece}
             intermediateBoard={intermediateBoard}
+            hintSquares={hintSquares}
           />
         </div>
+        <p className="sr-only" aria-live="polite">
+          {hintText}
+        </p>
 
         <GameControls
           onNewGame={handleNewGame}
           onShowLeaderboard={() => setShowLeaderboard(true)}
-          onShowHelp={() => setShowTutorial(true)}
           onShowAchievements={() => setShowAchievements(true)}
           onShowHistory={() => setShowHistory(true)}
           onReturnToSetup={handleReturnToSetup}
           onUndo={undoMove}
           canUndo={canUndo}
+          onHint={isPvP ? undefined : requestHint}
+          canHint={canRequestHint}
+          hintPending={hintPending}
           gameStatus={gameState.status}
         />
       </main>

@@ -5,7 +5,8 @@
  * MOVE/JUMP durations must match their CSS animation counterparts in index.css.
  */
 
-export const AI_MOVE_DELAY = 600 // Pause before AI starts moving
+export const AI_MOVE_DELAY = 600 // Least time from the player's move to the AI's reply starting
+export const AI_MIN_PAUSE_AFTER_MOVE = 300 // Least pause after the player's move lands
 export const MOVE_ANIMATION_DURATION = 350 // Simple diagonal slide
 export const JUMP_ANIMATION_DURATION = 500 // Jump arc animation
 export const CAPTURE_ANIMATION_DURATION = 400 // Captured piece fade-out

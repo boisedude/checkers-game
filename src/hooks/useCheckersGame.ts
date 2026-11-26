@@ -11,6 +11,11 @@
  * Multi-jump animations update intermediateBoard for accurate visual state.
  *
  * Undo in PvC mode undoes both player move + AI response (2 moves).
+ *
+ * The opponent's search and hints run in a web worker (aiClient). The opponent starts
+ * thinking as soon as the player commits a move, while that move animates; the reply
+ * still waits out AI_MOVE_DELAY from the player's move and AI_MIN_PAUSE_AFTER_MOVE
+ * after it lands, so it never arrives instantly.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
@@ -19,11 +24,14 @@ import {
   createInitialGameState,
   getValidMovesForPiece,
   computeNextGameState,
+  hashBoard,
 } from '@/lib/checkersRules'
 import { saveGame, loadSavedGame, clearSavedGame, hasSavedGame } from '@/lib/gameSerialization'
-import { getAIMove } from '@/lib/aiStrategies'
+import { requestAIMove } from '@/lib/aiClient'
+import { HINT_TIME_MS } from '@/lib/aiStrategies'
 import {
   AI_MOVE_DELAY,
+  AI_MIN_PAUSE_AFTER_MOVE,
   MOVE_ANIMATION_DURATION,
   JUMP_ANIMATION_DURATION,
   CAPTURE_ANIMATION_DURATION,
@@ -76,6 +84,19 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
   // Intermediate board for rendering during multi-jump animations
   const [intermediateBoard, setIntermediateBoard] = useState<GameState['board'] | null>(null)
 
+  // Hint: the suggested move and the board it was computed for (it lapses when the board changes)
+  const [hint, setHint] = useState<{ board: GameState['board']; move: ValidMove } | null>(null)
+  const [hintPendingFor, setHintPendingFor] = useState<GameState['board'] | null>(null)
+  const hintTokenRef = useRef(0)
+
+  // The opponent's reply, asked for when the player commits a move (keyed by the position it answers)
+  const prefetchRef = useRef<{
+    key: string
+    difficulty: Difficulty
+    promise: Promise<ValidMove | null>
+    askedAt: number
+  } | null>(null)
+
   const aiMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const aiMoveScheduledRef = useRef(false)
   const animationAbortRef = useRef<AbortController | null>(null)
@@ -93,6 +114,7 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
       aiMoveTimeoutRef.current = null
     }
     aiMoveScheduledRef.current = false
+    prefetchRef.current = null
     setIsAnimating(false)
     setAnimatingPiece(null)
     setCapturedPiece(null)
@@ -230,8 +252,28 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
 
       aiMoveTimeoutRef.current = setTimeout(async () => {
         aiMoveTimeoutRef.current = null
+        const turnStartedAt = Date.now()
+        const pre = prefetchRef.current
+        prefetchRef.current = null
+        const key = `${hashBoard(gameState.board, 2)}:${gameState.moveHistory.length}`
+        const prefetched = pre && pre.key === key && pre.difficulty === gameState.difficulty ? pre : null
+        const askedAt = prefetched ? prefetched.askedAt : turnStartedAt
         try {
-          const aiMove = getAIMove(gameState.board, 2, gameState.difficulty)
+          const aiMove = await (prefetched
+            ? prefetched.promise
+            : requestAIMove(gameState.board, 2, gameState.difficulty, {
+                positionHistory: gameState.positionHistory,
+                movesWithoutCaptureOrPromotion: gameState.movesWithoutCaptureOrPromotion,
+                plyCount: gameState.moveHistory.length,
+              }))
+          if (abortController.signal.aborted) return
+
+          // Keep a minimum thinking pause so the reply never lands instantly
+          const remaining = Math.max(
+            AI_MOVE_DELAY - (Date.now() - askedAt),
+            AI_MIN_PAUSE_AFTER_MOVE - (Date.now() - turnStartedAt)
+          )
+          if (remaining > 0) await cancellableDelay(remaining, abortController.signal)
 
           if (aiMove) {
             setIsAnimating(true)
@@ -244,6 +286,7 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
 
             // Apply move to state
             setGameState(prevState => {
+              if (prevState.currentPlayer !== 2 || prevState.status !== 'playing') return prevState
               try {
                 const nextState = computeNextGameState(prevState, aiMove)
                 return {
@@ -264,9 +307,10 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
           if (e instanceof DOMException && e.name === 'AbortError') return
           setIsAnimating(false)
         } finally {
-          aiMoveScheduledRef.current = false
+          // A cancelled request must not clear the flag of a request scheduled after it
+          if (!abortController.signal.aborted) aiMoveScheduledRef.current = false
         }
-      }, AI_MOVE_DELAY)
+      }, 0)
     }
 
     return () => {
@@ -283,6 +327,9 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     gameState.mode,
     gameState.board,
     gameState.difficulty,
+    gameState.positionHistory,
+    gameState.movesWithoutCaptureOrPromotion,
+    gameState.moveHistory.length,
     isAnimating,
     executeAnimatedMove,
   ])
@@ -330,6 +377,30 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
           setIsAnimating(true)
           setSelectedPiece(null)
           setHighlightedSquares([])
+          setHint(null)
+
+          // Let the opponent start thinking while this move animates
+          if (gameState.mode === 'pvc') {
+            try {
+              const next = computeNextGameState(gameState, validMove)
+              if (next.status === 'playing' && next.currentPlayer === 2) {
+                const promise = requestAIMove(next.board, 2, next.difficulty, {
+                  positionHistory: next.positionHistory,
+                  movesWithoutCaptureOrPromotion: next.movesWithoutCaptureOrPromotion,
+                  plyCount: next.moveHistory.length,
+                })
+                promise.catch(() => {})
+                prefetchRef.current = {
+                  key: `${hashBoard(next.board, 2)}:${next.moveHistory.length}`,
+                  difficulty: next.difficulty,
+                  promise,
+                  askedAt: Date.now(),
+                }
+              }
+            } catch {
+              prefetchRef.current = null
+            }
+          }
 
           try {
             // Run animation sequence
@@ -377,11 +448,7 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
       }
     },
     [
-      gameState.board,
-      gameState.status,
-      gameState.currentPlayer,
-      gameState.mode,
-      gameState.mustJump,
+      gameState,
       selectedPiece,
       isAnimating,
       executeAnimatedMove,
@@ -509,6 +576,38 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
   }, [isAnimating, cancelAnimations])
 
   /**
+   * Asks Bentley's engine for the best move for the human (games against a character only).
+   */
+  const canRequestHint =
+    gameState.mode === 'pvc' &&
+    gameState.status === 'playing' &&
+    gameState.currentPlayer === 1 &&
+    !isAnimating
+
+  const requestHint = useCallback(async () => {
+    if (!canRequestHint) return
+    const board = gameState.board
+    const token = ++hintTokenRef.current
+    setHintPendingFor(board)
+    try {
+      const move = await requestAIMove(board, 1, 'hard', {
+        positionHistory: gameState.positionHistory,
+        movesWithoutCaptureOrPromotion: gameState.movesWithoutCaptureOrPromotion,
+        timeMs: HINT_TIME_MS,
+      })
+      if (token === hintTokenRef.current && move) setHint({ board, move })
+    } catch (e) {
+      console.warn('checkers: hint failed', e)
+    } finally {
+      if (token === hintTokenRef.current) setHintPendingFor(null)
+    }
+  }, [canRequestHint, gameState.board, gameState.positionHistory, gameState.movesWithoutCaptureOrPromotion])
+
+  // A hint belongs to the board it was computed for; any move, undo or new game retires it.
+  const hintMove = hint && hint.board === gameState.board && canRequestHint ? hint.move : null
+  const hintPending = hintPendingFor !== null && hintPendingFor === gameState.board
+
+  /**
    * Checks if a square is highlighted (valid move destination)
    */
   const isHighlighted = useCallback(
@@ -557,5 +656,9 @@ export function useCheckersGame(initialDifficulty: Difficulty = 'medium') {
     isPieceSelected,
     canUndo,
     hasSavedGame,
+    hintMove,
+    hintPending,
+    canRequestHint,
+    requestHint,
   }
 }

@@ -14,6 +14,7 @@ const config: Config = {
   ],
   setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
   moduleNameMapper: {
+    '^@/lib/createAIWorker$': '<rootDir>/src/__mocks__/createAIWorker.ts',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@shared/(.*)$': '<rootDir>/shared/$1',
     '^react$': '<rootDir>/node_modules/react',

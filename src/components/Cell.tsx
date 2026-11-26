@@ -27,6 +27,8 @@ interface CellProps {
   isBeingPromoted?: boolean
   lastMoveFrom?: boolean
   lastMoveTo?: boolean
+  /** Part of the suggested move shown by Hint */
+  isHint?: boolean
 }
 
 export const Cell = React.memo(function Cell({
@@ -46,6 +48,7 @@ export const Cell = React.memo(function Cell({
   isBeingPromoted = false,
   lastMoveFrom = false,
   lastMoveTo = false,
+  isHint = false,
 }: CellProps) {
   const handleClick = () => {
     if (!disabled) {
@@ -74,11 +77,11 @@ export const Cell = React.memo(function Cell({
   const woodClasses = isDark ? 'wood-dark' : 'wood-light'
 
   // Highlight and selection classes
-  const stateClasses = isHighlighted ? 'cell-highlighted' : ''
+  const stateClasses = `${isHighlighted ? 'cell-highlighted' : ''} ${isHint ? 'cell-hint' : ''}`
 
   // Last move indicator classes
   const lastMoveClasses =
-    (lastMoveFrom || lastMoveTo) && !isSelected && !isHighlighted
+    (lastMoveFrom || lastMoveTo) && !isSelected && !isHighlighted && !isHint
       ? 'ring-2 ring-inset ring-primary/40'
       : ''
 
@@ -96,11 +99,12 @@ export const Cell = React.memo(function Cell({
   const pieceDescription = piece
     ? `${piece.player === 1 ? 'Red' : 'Black'} ${piece.type === 'king' ? 'king' : 'piece'}`
     : ''
+  const hintNote = isHint ? ', hint' : ''
   const cellDescription = piece
-    ? `${cellPosition}: ${pieceDescription}${isSelected ? ', selected' : ''}`
+    ? `${cellPosition}: ${pieceDescription}${isSelected ? ', selected' : ''}${hintNote}`
     : isHighlighted
-      ? `${cellPosition}: valid move destination`
-      : `${cellPosition}: empty`
+      ? `${cellPosition}: valid move destination${hintNote}`
+      : `${cellPosition}: empty${hintNote}`
 
   return (
     <div

@@ -14,7 +14,7 @@ A classic Checkers (Draughts) game with personality-driven AI opponents. Challen
 - **AI Opponents with Personality** - Three difficulty levels featuring unique characters:
   - **Bella - The Playful Pup** (Easy): Sweet and enthusiastic, still learning the ropes
   - **Coop - The Casual Challenger** (Medium): Friendly arcade owner with solid strategy
-  - **Bentley - The Mastermind** (Hard): Ruthless champion with perfect strategic thinking
+  - **Bentley - The Mastermind** (Hard): The arcade champion, a deep-searching engine that punishes loose moves
 - **Jumping Mechanics** - Capture opponent pieces by jumping over them, with multi-jump support
 - **King Pieces** - Regular pieces become kings when reaching the opposite end, gaining backward movement
 - **Smooth Animations** - Beautiful piece movement animations with CSS transforms
@@ -101,30 +101,27 @@ npm run type-check   # Run TypeScript compiler
 ## AI Difficulty Levels
 
 ### Easy - Bella (The Playful Pup)
-- Random move selection with 30% randomness
-- Shallow search depth (2 levels)
-- Occasional suboptimal moves
+- Plays a random move 30% of the time
+- Otherwise a 2-ply search that only counts material
 - Perfect for learning the game rules
-- Enthusiastic and encouraging personality
 
 ### Medium - Coop (The Casual Challenger)
-- Greedy algorithm with position evaluation
-- Moderate search depth (4 levels)
-- Values kings, center control, and mobility
+- The same engine as Bentley, limited to 4 plies plus forced captures
+- Picks at random among moves within a quarter of a man of the best
 - Provides a fair challenge for intermediate players
-- Friendly and competitive personality
 
 ### Hard - Bentley (The Mastermind)
-- Minimax algorithm with alpha-beta pruning
-- Deep search depth (6 levels)
-- Sophisticated evaluation function:
-  - King value: +200 points
-  - Center control: +15 points per piece
-  - Back row protection: +20 points
-  - Mobility: +3 points per available move
-  - Material count: +100 points per piece
-- No randomness - plays perfectly
-- Ruthless and calculating personality
+- Engine in `src/lib/engine.ts`, run in a web worker with about 700 ms per move
+- Board as three 32-bit masks; iterative deepening alpha-beta (PVS) with a
+  transposition table, killer and history move ordering, and late move reductions
+- Never stops searching while a capture is pending, so it does not miss shots at the horizon
+- Typically searches 15 to 18 plies in the middlegame
+- Evaluation: material (king about 1.35 men), trading down when ahead, back rank guard,
+  advancement, centre, dog holes, blocked men, king mobility, men with a clear run to the
+  crown row, and endgame technique (driving kings out of the double corner)
+- Knows the draw rules (3-fold repetition, 80 plies without a capture or promotion)
+- Varies its choice among equally good moves early in the game
+- The Hint button asks the same engine for 400 ms
 
 ## Project Structure
 
@@ -147,7 +144,8 @@ checkers/
 │   │   └── useGameAudio.ts          # Web Audio API sounds
 │   ├── lib/
 │   │   ├── checkersRules.ts         # Game rules engine
-│   │   ├── aiStrategies.ts          # AI algorithms (minimax with alpha-beta)
+│   │   ├── aiStrategies.ts          # Bella, Coop and Bentley entry point
+│   │   ├── engine.ts                # Bentley's search and evaluation
 │   │   └── utils.ts                 # Utility functions
 │   ├── types/
 │   │   └── checkers.types.ts        # TypeScript type definitions
