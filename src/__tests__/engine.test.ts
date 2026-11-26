@@ -203,11 +203,7 @@ describe('engine legality', () => {
       const p: Player = rnd() < 0.5 ? 1 : 2
       const legal = getAllValidMoves(b, p)
       const r = searchBestMove(b, p, { maxDepth: 1 + (i % 5), maxNodes: 5000 })
-      if (legal.length === 0) {
-        expect(r.move).toBeNull()
-      } else {
-        expect(legal).toContainEqual(r.move)
-      }
+      expect(legal.length === 0 ? [null] : legal).toContainEqual(r.move)
     }
   })
 

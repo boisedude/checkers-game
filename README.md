@@ -1,7 +1,7 @@
 # Checkers - Play Coop!
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-7-blue.svg)
 ![React](https://img.shields.io/badge/React-19-blue.svg)
 
 A classic Checkers (Draughts) game with personality-driven AI opponents. Challenge Bella, Coop, or Bentley in this traditional board game featuring jumping mechanics, king pieces, smooth animations, and character-based gameplay.
@@ -28,7 +28,7 @@ A classic Checkers (Draughts) game with personality-driven AI opponents. Challen
 ## Technology Stack
 
 - **React 19** with TypeScript - Modern React with strict mode compliance
-- **Vite 5** - Lightning-fast build tool and development server
+- **Vite 8** - Build tool and development server
 - **Tailwind CSS + shadcn/ui** - Beautiful, accessible component library
 - **React Router 7** - Client-side routing with HashRouter
 - **Web Audio API** - Dynamic sound effect generation
@@ -67,8 +67,9 @@ npm run preview
 npm run dev          # Start development server
 npm run build        # Build for production
 npm run preview      # Preview production build
-npm run lint         # Run ESLint
-npm run lint:fix     # Auto-fix ESLint issues
+npm run lint         # Run oxlint
+npm run lint:fix     # Auto-fix oxlint issues
+npm run test         # Run the unit tests (Vitest)
 npm run format       # Format code with Prettier
 npm run type-check   # Run TypeScript compiler
 ```
@@ -155,7 +156,6 @@ checkers/
 │   └── characters.ts                # Character definitions and catchphrases
 ├── index.html
 ├── vite.config.ts
-├── tailwind.config.js
 └── package.json
 ```
 
@@ -214,7 +214,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ### Development Guidelines
 
-- Follow the existing code style (use Prettier and ESLint)
+- Follow the existing code style (use Prettier and oxlint)
 - Ensure TypeScript has no errors (`npm run type-check`)
 - Test your changes thoroughly
 - Update documentation as needed

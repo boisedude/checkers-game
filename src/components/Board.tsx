@@ -96,6 +96,7 @@ export const Board = React.memo(function Board({
           <div
             className="grid grid-cols-8 gap-0 aspect-square"
             role="grid"
+            tabIndex={-1}
             aria-label="Checkers game board"
             onKeyDown={handleGridKeyDown}
           >

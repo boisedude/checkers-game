@@ -7,25 +7,25 @@ async function playerMove(result: Hook, a: [number, number], b: [number, number]
   await act(async () => { await result.current.handleSquareClick(a[0], a[1]) })
   await act(async () => {
     const p = result.current.handleSquareClick(b[0], b[1])
-    await jest.advanceTimersByTimeAsync(wait)
+    await vi.advanceTimersByTimeAsync(wait)
     await p
   })
 }
 
 describe('hook: undo, AI scheduling, opponent changes', () => {
   beforeEach(() => {
-    jest.useFakeTimers()
+    vi.useFakeTimers()
     localStorage.clear()
   })
   afterEach(() => {
-    jest.useRealTimers()
+    vi.useRealTimers()
   })
 
   it('undo drops the undone positions from the repetition history and restores the draw counter', async () => {
     const { result } = renderHook(() => useCheckersGame('easy'))
     act(() => result.current.startGame('pvc', 'easy'))
     await playerMove(result, [5, 0], [4, 1])
-    await act(async () => { await jest.advanceTimersByTimeAsync(4000) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
     expect(result.current.gameState.moveHistory).toHaveLength(2)
     expect(result.current.gameState.positionHistory).toHaveLength(2)
     act(() => result.current.undoMove())
@@ -41,7 +41,7 @@ describe('hook: undo, AI scheduling, opponent changes', () => {
     // AI is waiting out its pre-move delay; the difficulty value is re-applied
     act(() => result.current.changeDifficulty('medium'))
     act(() => result.current.changeDifficulty('easy'))
-    await act(async () => { await jest.advanceTimersByTimeAsync(5000) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
     expect(result.current.gameState.currentPlayer).toBe(1)
     expect(result.current.gameState.moveHistory).toHaveLength(2)
   })

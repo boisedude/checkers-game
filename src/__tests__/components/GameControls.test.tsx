@@ -5,12 +5,12 @@ import { GameControls } from '@/components/GameControls'
 
 describe('GameControls', () => {
   const defaultProps = {
-    onNewGame: jest.fn(),
-    onShowLeaderboard: jest.fn(),
+    onNewGame: vi.fn(),
+    onShowLeaderboard: vi.fn(),
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   describe('New Game button', () => {
@@ -20,7 +20,7 @@ describe('GameControls', () => {
     })
 
     it('calls onNewGame when New Game button clicked', () => {
-      const onNewGame = jest.fn()
+      const onNewGame = vi.fn()
       render(<GameControls {...defaultProps} onNewGame={onNewGame} />)
 
       fireEvent.click(screen.getByText('New game'))
@@ -40,7 +40,7 @@ describe('GameControls', () => {
     })
 
     it('calls onShowLeaderboard when Stats button clicked', () => {
-      const onShowLeaderboard = jest.fn()
+      const onShowLeaderboard = vi.fn()
       render(<GameControls {...defaultProps} onShowLeaderboard={onShowLeaderboard} />)
 
       fireEvent.click(screen.getByText('Stats'))
@@ -58,7 +58,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           gameStatus="playing"
         />
@@ -75,7 +75,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           gameStatus="won"
         />
@@ -87,7 +87,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           gameStatus="setup"
         />
@@ -99,7 +99,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           gameStatus="draw"
         />
@@ -111,7 +111,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={false}
           gameStatus="playing"
         />
@@ -124,7 +124,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           gameStatus="playing"
           disabled={false}
@@ -135,7 +135,7 @@ describe('GameControls', () => {
     })
 
     it('calls onUndo when undo button is clicked', () => {
-      const onUndo = jest.fn()
+      const onUndo = vi.fn()
       render(
         <GameControls
           {...defaultProps}
@@ -153,7 +153,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           gameStatus="playing"
           disabled={true}
@@ -167,7 +167,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           gameStatus="playing"
         />
@@ -179,7 +179,7 @@ describe('GameControls', () => {
 
   describe('Help button', () => {
     it('renders Help button when onShowHelp is provided', () => {
-      render(<GameControls {...defaultProps} onShowHelp={jest.fn()} />)
+      render(<GameControls {...defaultProps} onShowHelp={vi.fn()} />)
       expect(screen.getByText('How to play')).toBeInTheDocument()
     })
 
@@ -189,7 +189,7 @@ describe('GameControls', () => {
     })
 
     it('calls onShowHelp when Help button clicked', () => {
-      const onShowHelp = jest.fn()
+      const onShowHelp = vi.fn()
       render(<GameControls {...defaultProps} onShowHelp={onShowHelp} />)
 
       fireEvent.click(screen.getByText('How to play'))
@@ -202,10 +202,10 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           gameStatus="playing"
-          onShowHelp={jest.fn()}
+          onShowHelp={vi.fn()}
         />
       )
       expect(screen.getByText('New game')).toBeInTheDocument()
@@ -218,7 +218,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           gameStatus="playing"
         />
@@ -234,7 +234,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           canUndo={true}
           // gameStatus not provided, should default to 'playing'
         />
@@ -247,7 +247,7 @@ describe('GameControls', () => {
       render(
         <GameControls
           {...defaultProps}
-          onUndo={jest.fn()}
+          onUndo={vi.fn()}
           gameStatus="playing"
           // canUndo not provided, defaults to false
         />

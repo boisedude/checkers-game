@@ -9,7 +9,7 @@ describe('Cell', () => {
     row: 3,
     col: 4,
     piece: null as CellValue,
-    onClick: jest.fn(),
+    onClick: vi.fn(),
     isHighlighted: false,
     isSelected: false,
     isDark: true,
@@ -17,7 +17,7 @@ describe('Cell', () => {
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   describe('dark/light squares', () => {
@@ -38,7 +38,7 @@ describe('Cell', () => {
 
   describe('click handling', () => {
     it('calls onClick with row and col when clicked and not disabled', () => {
-      const onClick = jest.fn()
+      const onClick = vi.fn()
       render(<Cell {...defaultProps} onClick={onClick} row={2} col={5} />)
 
       const cell = screen.getByRole('gridcell')
@@ -49,7 +49,7 @@ describe('Cell', () => {
     })
 
     it('does not call onClick when disabled', () => {
-      const onClick = jest.fn()
+      const onClick = vi.fn()
       render(<Cell {...defaultProps} onClick={onClick} disabled={true} />)
 
       const cell = screen.getByRole('gridcell')
@@ -59,7 +59,7 @@ describe('Cell', () => {
     })
 
     it('calls onClick on multiple clicks', () => {
-      const onClick = jest.fn()
+      const onClick = vi.fn()
       render(<Cell {...defaultProps} onClick={onClick} row={1} col={2} />)
 
       const cell = screen.getByRole('gridcell')
@@ -126,7 +126,7 @@ describe('Cell', () => {
 
   describe('keyboard interaction', () => {
     it('handles Enter key press', () => {
-      const onClick = jest.fn()
+      const onClick = vi.fn()
       render(<Cell {...defaultProps} onClick={onClick} row={4} col={3} />)
 
       const cell = screen.getByRole('gridcell')
@@ -137,7 +137,7 @@ describe('Cell', () => {
     })
 
     it('handles Space key press', () => {
-      const onClick = jest.fn()
+      const onClick = vi.fn()
       render(<Cell {...defaultProps} onClick={onClick} row={4} col={3} />)
 
       const cell = screen.getByRole('gridcell')
@@ -148,7 +148,7 @@ describe('Cell', () => {
     })
 
     it('does not trigger on other keys', () => {
-      const onClick = jest.fn()
+      const onClick = vi.fn()
       render(<Cell {...defaultProps} onClick={onClick} />)
 
       const cell = screen.getByRole('gridcell')
@@ -160,7 +160,7 @@ describe('Cell', () => {
     })
 
     it('does not trigger keyboard action when disabled', () => {
-      const onClick = jest.fn()
+      const onClick = vi.fn()
       render(<Cell {...defaultProps} onClick={onClick} disabled={true} />)
 
       const cell = screen.getByRole('gridcell')

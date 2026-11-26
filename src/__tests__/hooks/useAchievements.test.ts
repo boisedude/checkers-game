@@ -15,19 +15,19 @@ describe('useAchievements', () => {
     // Mock localStorage
     localStorageMock = {}
 
-    Storage.prototype.getItem = jest.fn((key: string) => localStorageMock[key] || null)
-    Storage.prototype.setItem = jest.fn((key: string, value: string) => {
+    Storage.prototype.getItem = vi.fn((key: string) => localStorageMock[key] || null)
+    Storage.prototype.setItem = vi.fn((key: string, value: string) => {
       localStorageMock[key] = value
     })
-    Storage.prototype.removeItem = jest.fn((key: string) => {
+    Storage.prototype.removeItem = vi.fn((key: string) => {
       delete localStorageMock[key]
     })
 
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   afterEach(() => {
-    jest.restoreAllMocks()
+    vi.restoreAllMocks()
   })
 
   describe('initialization', () => {
@@ -942,11 +942,11 @@ describe('useAchievements', () => {
 
   describe('localStorage edge cases', () => {
     it('handles localStorage being unavailable', () => {
-      Storage.prototype.getItem = jest.fn(() => {
+      Storage.prototype.getItem = vi.fn(() => {
         throw new Error('localStorage unavailable')
       })
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation()
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const { result } = renderHook(() => useAchievements())
 
@@ -959,11 +959,11 @@ describe('useAchievements', () => {
     })
 
     it('handles localStorage.setItem throwing error', () => {
-      Storage.prototype.setItem = jest.fn(() => {
+      Storage.prototype.setItem = vi.fn(() => {
         throw new Error('localStorage full')
       })
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation()
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const { result } = renderHook(() => useAchievements())
 

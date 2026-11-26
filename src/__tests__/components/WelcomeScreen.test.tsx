@@ -8,13 +8,13 @@ describe('WelcomeScreen', () => {
   const defaultProps = {
     mode: 'pvc' as GameMode,
     difficulty: 'medium' as Difficulty,
-    onModeChange: jest.fn(),
-    onDifficultyChange: jest.fn(),
-    onStartGame: jest.fn(),
+    onModeChange: vi.fn(),
+    onDifficultyChange: vi.fn(),
+    onStartGame: vi.fn(),
   }
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    vi.clearAllMocks()
   })
 
   describe('mode toggle buttons', () => {
@@ -29,7 +29,7 @@ describe('WelcomeScreen', () => {
     })
 
     it('calls onModeChange with pvc when one player button clicked', () => {
-      const onModeChange = jest.fn()
+      const onModeChange = vi.fn()
       render(<WelcomeScreen {...defaultProps} onModeChange={onModeChange} />)
 
       fireEvent.click(screen.getByText('One player'))
@@ -37,7 +37,7 @@ describe('WelcomeScreen', () => {
     })
 
     it('calls onModeChange with pvp when two players button clicked', () => {
-      const onModeChange = jest.fn()
+      const onModeChange = vi.fn()
       render(<WelcomeScreen {...defaultProps} onModeChange={onModeChange} />)
 
       fireEvent.click(screen.getByText('Two players'))
@@ -73,7 +73,7 @@ describe('WelcomeScreen', () => {
     })
 
     it('calls onDifficultyChange when clicking Bella card', () => {
-      const onDifficultyChange = jest.fn()
+      const onDifficultyChange = vi.fn()
       render(
         <WelcomeScreen {...defaultProps} onDifficultyChange={onDifficultyChange} mode="pvc" />
       )
@@ -83,7 +83,7 @@ describe('WelcomeScreen', () => {
     })
 
     it('calls onDifficultyChange when clicking Coop card', () => {
-      const onDifficultyChange = jest.fn()
+      const onDifficultyChange = vi.fn()
       render(
         <WelcomeScreen {...defaultProps} onDifficultyChange={onDifficultyChange} mode="pvc" />
       )
@@ -93,7 +93,7 @@ describe('WelcomeScreen', () => {
     })
 
     it('calls onDifficultyChange when clicking Bentley card', () => {
-      const onDifficultyChange = jest.fn()
+      const onDifficultyChange = vi.fn()
       render(
         <WelcomeScreen {...defaultProps} onDifficultyChange={onDifficultyChange} mode="pvc" />
       )
@@ -133,7 +133,7 @@ describe('WelcomeScreen', () => {
     })
 
     it('calls onStartGame when Start game button is clicked', () => {
-      const onStartGame = jest.fn()
+      const onStartGame = vi.fn()
       render(<WelcomeScreen {...defaultProps} onStartGame={onStartGame} />)
 
       fireEvent.click(screen.getByText('Start game'))

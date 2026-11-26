@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
@@ -18,24 +18,15 @@ export default defineConfig({
     port: 3002,
     open: true,
   },
+  worker: { format: 'es' },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/setupTests.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
   build: {
     outDir: 'dist',
-    sourcemap: false, // Disabled for production - protects source code and reduces bundle size
-    minify: 'terser', // Better minification than default esbuild
-    terserOptions: {
-      compress: {
-        drop_console: false, // Keep console.error for debugging, remove only console.log
-        drop_debugger: true,
-      },
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // Separate vendor chunks for better caching
-          'react-vendor': ['react', 'react-dom'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-select'],
-        },
-      },
-    },
+    sourcemap: false,
   },
 })

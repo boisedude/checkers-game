@@ -39,51 +39,28 @@ describe('checkersRules', () => {
   describe('createInitialBoard', () => {
     it('should place 12 black pieces in rows 0-2', () => {
       const board = createInitialBoard()
-      let blackCount = 0
+      const pieces = board.slice(0, 3).flat().filter((piece) => piece !== null)
 
-      for (let row = 0; row < 3; row++) {
-        for (let col = 0; col < BOARD_SIZE; col++) {
-          const piece = board[row][col]
-          if (piece) {
-            expect(piece.player).toBe(2)
-            expect(piece.type).toBe('regular')
-            blackCount++
-          }
-        }
-      }
-
-      expect(blackCount).toBe(12)
+      expect(pieces).toHaveLength(12)
+      expect(pieces.every((piece) => piece.player === 2 && piece.type === 'regular')).toBe(true)
     })
 
     it('should place 12 red pieces in rows 5-7', () => {
       const board = createInitialBoard()
-      let redCount = 0
+      const pieces = board.slice(5, BOARD_SIZE).flat().filter((piece) => piece !== null)
 
-      for (let row = 5; row < BOARD_SIZE; row++) {
-        for (let col = 0; col < BOARD_SIZE; col++) {
-          const piece = board[row][col]
-          if (piece) {
-            expect(piece.player).toBe(1)
-            expect(piece.type).toBe('regular')
-            redCount++
-          }
-        }
-      }
-
-      expect(redCount).toBe(12)
+      expect(pieces).toHaveLength(12)
+      expect(pieces.every((piece) => piece.player === 1 && piece.type === 'regular')).toBe(true)
     })
 
     it('should only place pieces on dark squares', () => {
       const board = createInitialBoard()
 
-      for (let row = 0; row < BOARD_SIZE; row++) {
-        for (let col = 0; col < BOARD_SIZE; col++) {
-          const piece = board[row][col]
-          if (piece) {
-            expect((row + col) % 2).toBe(1) // Dark squares have odd sum
-          }
-        }
-      }
+      const lightSquaresWithPieces = board
+        .flatMap((cells, row) => cells.map((piece, col) => ({ piece, row, col })))
+        .filter(({ piece, row, col }) => piece !== null && (row + col) % 2 === 0)
+
+      expect(lightSquaresWithPieces).toHaveLength(0) // Dark squares have odd sum
     })
 
     it('should have empty middle rows (3-4)', () => {
